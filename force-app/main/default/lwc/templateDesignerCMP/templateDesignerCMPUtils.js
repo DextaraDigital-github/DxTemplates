@@ -257,7 +257,8 @@ export function savingPageProperties(thisObj) {
           paddingleft: tempThisObj.combineValueAndUnit(tempThisObj.footerProperties.paddings.leftPadding),
           paddingright: tempThisObj.combineValueAndUnit(tempThisObj.footerProperties.paddings.rightPadding),
           paddingtop: tempThisObj.combineValueAndUnit(tempThisObj.footerProperties.paddings.topPadding),
-          paddingbottom: tempThisObj.combineValueAndUnit(tempThisObj.footerProperties.paddings.bottomPadding),            lineHeight: tempThisObj.footerProperties.lineHeight.value,
+          paddingbottom: tempThisObj.combineValueAndUnit(tempThisObj.footerProperties.paddings.bottomPadding),
+          lineHeight: tempThisObj.footerProperties.lineHeight.value,
           borderColor: tempThisObj.footerProperties.borderColor,
           borderOpacity: tempThisObj.footerProperties.borderOpacity,
           borderWeight: tempThisObj.combineValueAndUnit(tempThisObj.footerProperties.borderWeight),
@@ -367,14 +368,13 @@ export function savingPageProperties(thisObj) {
         footerJSONVal : footerJSON
     };
     console.log('templateData --> ', templateData); 
-    tempThisObj.jsonStr = templateData;
     saveTemplateData({ templateId: tempThisObj.recordId, jsonData: JSON.stringify(templateData) })
     .then(result => {
         if (result.startsWith('Success')) {
             tempThisObj.showToast('Success', 'Page Configurations are saved successfully!', 'success');
             tempThisObj.showPageProperties = false;
             tempThisObj.template.querySelector('c-modal').hide();
-            
+            tempThisObj.jsonStr = JSON.stringify(templateData);
         } else {
             tempThisObj.showToast('Error', 'An error occurred - ' + result, 'error');
             tempThisObj.showPageProperties = false;

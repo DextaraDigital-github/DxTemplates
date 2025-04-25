@@ -2564,7 +2564,8 @@ createTranslatedRecords() {
     this.showDeleteTemplate = false;
     this.editTemplate = false;
     this.showwatermarkbtn = false;
-    updatePropertiesFromJSON(this, this.sectionsData[0].DxCPQ__Document_Template__r.DxCPQ__PDF_Page_Properties__c);
+    this.jsonStr = this.jsonStr != null ? this.jsonStr : this.sectionsData[0].DxCPQ__Document_Template__r.DxCPQ__PDF_Page_Properties__c;
+    updatePropertiesFromJSON(this, this.jsonStr);
     this.showPageProperties = true;
     this.template.querySelector('c-modal').show();
   }
@@ -2724,7 +2725,7 @@ createTranslatedRecords() {
         },
         lineHeight: { value: '1' },
         borderColor:  { value: '#000000' },
-        bgColor:  { value: '#000000' },
+        bgColor:  { value: '#FFFFFF' },
         // borderRadius: { value: '0', unit: 'px' },
         borderOpacity: '1',
         borderWeight: { value: '1', unit: 'px' },
@@ -2747,7 +2748,7 @@ createTranslatedRecords() {
        },
         lineHeight: { value: '1', unit: 'px' },
         borderColor:  { value: '#000000' },
-        bgColor:  { value: '#000000' },
+        bgColor:  { value: '#FFFFFF' },
         // borderRadius: { value: '0', unit: 'px' },
         borderOpacity: '1',
         borderWeight: { value: '1', unit: 'px' },
