@@ -21,21 +21,21 @@
       "path": "force-app",
       "package": "Dx_Templates",
       "versionName": "",
-      "versionNumber": "0.15.0.NEXT",
+      "versionNumber": "0.16.0.NEXT",
       "default": false,
       "versionDescription": "",
       "postInstallScript": "PostInstallDataCreation",
-      "ancestorVersion": "HIGHEST"
+      "ancestorVersion": "NONE"
     },
     {
       "path": "force-app",
       "package": "DxTemplates_ManagedPackage",
       "versionName": "ver 0.1",
-      "versionNumber": "0.4.1.NEXT",
+      "versionNumber": "0.4.2.NEXT",
       "default": false,
       "versionDescription": "",
       "postInstallScript": "PostInstallDataCreation",
-      "ancestorVersion": "HIGHEST"
+      "ancestorVersion": "NONE"
     },
     {
       "path": "force-app",
@@ -45,7 +45,7 @@
       "default": true,
       "versionDescription": "",
       "postInstallScript": "PostInstallDataCreation",
-      "ancestorVersion": "HIGHEST"
+      "ancestorVersion": "NONE"
     }
   ],
   "packageAliases": {
@@ -140,6 +140,7 @@
     "DxTemplates_Managed_v3@0.7.0-1": "04tQm000001uz1pIAA",
     "Dx_Templates@0.13.0-1": "04tQm0000023ME9IAM",
     "Dx_Templates@0.14.0-1": "04tQm0000023XPhIAM",
-    "Dx_Templates@0.15.0-1": "04tQm0000023XXlIAM"
+    "Dx_Templates@0.15.0-1": "04tQm0000023XXlIAM",
+    "Dx_Templates@0.16.0-1": "04tQm0000027eSbIAI"
   }
 }
