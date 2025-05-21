@@ -169,7 +169,7 @@ global with sharing class DisplayPDFController
                                   			FROM Document__c WHERE External_Id__c =: inputparam OR Id =: inputparam WITH SECURITY_ENFORCED ORDER BY Sequence__c ];
                 String contentData='';
                 for (Document__c eachDocList: docList){
-                    contentData += eachDocList.Document_Body__c;
+                    contentData = eachDocList.Document_Body__c != null ? contentData + eachDocList.Document_Body__c : contentData;
                 }
                 docrec.Document_Body__c = contentData;
                 docrec.Document_Content__c = docList[0].Document_Content__c;
