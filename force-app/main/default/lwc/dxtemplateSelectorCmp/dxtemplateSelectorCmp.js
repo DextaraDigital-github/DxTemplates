@@ -18,7 +18,7 @@ export default class DxtemplateSelectorCmp extends LightningElement {
     @track modifiedPDFName;
     @track pageSize = 'A4';
     @track showSendEmailModal = false;
-    @track pageOrientation = 'Potrait';
+    @track pageOrientation = 'Portrait';
     @track saveRecordToAttachmentLabel;
     @track pageSizeOptions = [
         { label: 'A4', value: 'A4' },
@@ -26,7 +26,7 @@ export default class DxtemplateSelectorCmp extends LightningElement {
         { label: 'Letter', value: 'Letter' },
     ];
     @track  pageOrientationOptions = [
-        { label: 'Potrait', value: 'Potrait' },
+        { label: 'Portrait', value: 'Portrait' },
         { label: 'Landscape', value: 'Landscape' }
     ];
   
@@ -43,7 +43,7 @@ export default class DxtemplateSelectorCmp extends LightningElement {
     showSaveAttachmentButton=false;
     showTemplateSelectionHolder=true;
     templateWhereClause="IsActive__c = true";
-    pageProperties = {'pageSize' : 'A4','pageOrientation' : 'Potrait'};
+    pageProperties = {'pageSize' : 'A4','pageOrientation' : 'Portrait'};
 
     handlePdfModeSelection(event) {
         this.pageSize = (event.target.label === 'Page Size') ? event.target.value : this.pageSize;
@@ -54,7 +54,7 @@ export default class DxtemplateSelectorCmp extends LightningElement {
 
     connectedCallbackHandler() {
         this.pageSize =  this.defaultPageSize != '' || this.defaultPageSize != null ? this.defaultPageSize : 'A4';
-        this.pageOrientation =  this.defaultPageOrientation != '' || this.defaultPageOrientation != null ? this.defaultPageOrientation : 'Potrait';
+        this.pageOrientation =  this.defaultPageOrientation != '' || this.defaultPageOrientation != null ? this.defaultPageOrientation : 'Portrait';
         this.pageProperties.pageSize = this.pageSize;
         this.pageProperties.pageOrientation = this.pageOrientation;
         this.saveRecordToAttachmentLabel = `Save as Attachment`;
@@ -100,7 +100,7 @@ export default class DxtemplateSelectorCmp extends LightningElement {
         this.showGenerateButton=false;
         this.selectedTemplateId=undefined;
         this.showSaveAttachmentButton=false;
-        this.pageOrientation = 'Potrait';
+        this.pageOrientation = 'Portrait';
         this.pageSize = 'A4';
         this.pageProperties.pageSize = this.pageSize;
         this.pageProperties.pageOrientation = this.pageOrientation;
@@ -130,7 +130,7 @@ export default class DxtemplateSelectorCmp extends LightningElement {
 
     previewPDF() {
         this.pageSize = 'A4';
-        this.pageOrientation = 'Potrait';
+        this.pageOrientation = 'Portrait';
         window.open(this.downloadURL, "_blank");
     }
 

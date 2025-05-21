@@ -164,6 +164,20 @@ global with sharing class DisplayPDFController
                 docrec.Document_Template__r.PDF_Page_Properties__c = docList[0].Document_Template__r.PDF_Page_Properties__c;
                 docrec.Document_Template__r.Watermark_Data__c = docList[0].Document_Template__r.Watermark_Data__c;
             }
+            else if (inputparam != null){
+                List<Document__c> docList= [SELECT Id, Document_Body__c, Document_Content__c, Document_Template__r.Watermark_Data__c, Document_Template__r.PDF_Page_Properties__c,Sequence__c      
+                                  			FROM Document__c WHERE External_Id__c =: inputparam OR Id =: inputparam WITH SECURITY_ENFORCED ORDER BY Sequence__c ];
+                String contentData='';
+                for (Document__c eachDocList: docList){
+                    contentData += eachDocList.Document_Body__c;
+                }
+                docrec.Document_Body__c = contentData;
+                docrec.Document_Content__c = docList[0].Document_Content__c;
+                docrec.Document_Template__r = new Document_Template__c();
+                docrec.Document_Template__r.PDF_Page_Properties__c = docList[0].Document_Template__r.PDF_Page_Properties__c;
+                docrec.Document_Template__r.Watermark_Data__c = docList[0].Document_Template__r.Watermark_Data__c;
+            }
+            
             else {
             docrec = [SELECT Id, Document_Body__c, Document_Content__c, Document_Template__r.Watermark_Data__c, Document_Template__r.PDF_Page_Properties__c      
                                   FROM Document__c 
@@ -393,10 +407,30 @@ global with sharing class DisplayPDFController
             
             Document__c docrec=new Document__c();
             docrec.Document_Content__c=pdfheaderfooter;
-            docrec.Document_Body__c=pdfbody;
+            Integer bodyLength = 100000;
+            Integer totalDocNumber = (pdfbody.length()/bodyLength) +1;
+            List<Document__c> docList = new List<Document__c>();
+            Integer startBody=0;
+            Integer endBody = 0;
+            for (integer i=0; i<totalDocNumber; i++){
+                Document__c sectionContentRecord = new Document__c();
+                endBody = startBody + bodyLength;
+                endBody = endBody>pdfbody.length() ? pdfbody.length() : endBody;
+                String contentChunk = pdfbody.substring(startBody, endBody);
+                sectionContentRecord.Sequence__c = i;
+                sectionContentRecord.Document_Body__c = contentChunk;
+                sectionContentRecord.DxCPQ__External_Id__c = documentId;
+            	//sectionContentRecord.Document_Template__c = templateId;
+            	//sectionContentRecord.Document_Content__c = String.valueof(headerFooterSectionMap).replace('\"header\"=','\"header\":').replace('\"footer\"=','\"footer\":');
+                docList.add(sectionContentRecord);
+                startBody = endBody;
+            }
+            
+            //docrec.Document_Body__c=pdfbody;
             //docrec.Document_Template__c=templateId;
             docrec.Object_Id__c=quoteId;
             docrec.Id=documentId;
+            docrec.DxCPQ__Sequence__c = -1;
             doctobeinserted.add(docrec);
             Savepoint sp = Database.setSavepoint();
             List<Database.SaveResult> sResult = safe.doUpdate(doctobeinserted);
@@ -404,6 +438,28 @@ global with sharing class DisplayPDFController
             if(errorList.size()>0) {
                 Database.rollback(sp);
                 throw new SafeClassException(String.join( errorList, ', ' ));
+            }
+            
+            List<Database.SaveResult> sResult1 = safe.doInsert(docList);
+            List<String> errorList1 = Safely.safeClassExceptionHandlerInsert(sResult1);
+            
+            if(errorList1.size()>0) {
+                Database.rollback(sp);
+                throw new SafeClassException(String.join( errorList1, ', ' ));
+            }
+            List <Id> insertedDocumentIds = new List<Id> ();
+            for(Integer i=0;i<sResult1.size();i++) {
+                if(sResult1.get(i).isSuccess()) {
+                    if(sResult1.get(i).getId() != null) {
+                        System.debug('sResult1- '+sResult1.get(i).getId());
+                        insertedDocumentIds.add(sResult1.get(i).getId());
+                    }
+                } else if (!sResult1.get(i).isSuccess()) {
+                    Database.Error error = sResult1.get(i).getErrors().get(0);
+                    String failedDML = error.getMessage();
+                    insertedDocumentIds[i] = null;
+                    throw new SafeClassException(String.join( new List<String> {failedDML}, ', '));
+                }
             }
             return documentId;
         } catch (Exception ex) {
@@ -585,7 +641,6 @@ global with sharing class DisplayPDFController
                     replaceData.putAll(mapdata); 
                 }                  
             }
-            List<Document__c> data=[SELECT Id from Document__c WHERE Document_Template__c =: templateId WITH SECURITY_ENFORCED];
             Id docid;
             List<Document__c> doclist=new List<Document__c>();
             Document__c doc= new Document__c();
@@ -593,30 +648,15 @@ global with sharing class DisplayPDFController
             if(!string.isEmpty(templateData[0].FlowId__c) || !string.isEmpty(templateData[0].ClassId__c)){
                 doc.Token_Data__c=JSON.serialize(replaceData);
             }
-           
-            if(data.size() ==0){
-                doclist.add(doc); 
-            } else {
-                doc.Id=data[0].Id;
-                docid=data[0].Id;
-                doclist.add(doc); 
-            }
 
             Savepoint sp = Database.setSavepoint();
-            Database.UpsertResult[] urList2 = safe.doUpsert(doclist);
-            List<String> errorList = Safely.safeClassExceptionHandlerUpsert(urList2);
-            if(errorList.size()>0){
-                Database.rollback(sp);
-                throw new SafeClassException(String.join( errorList, ', ' ));
-            }
-
-            for(Integer i=0;i<urList2.size();i++) {
-                if (urList2.get(i).isSuccess()) {
-                    docid=urList2.get(i).getId();
-                }else if (!urList2.get(i).isSuccess()){
-                    Database.Error error = urList2.get(i).getErrors().get(0);
+            Database.SaveResult result = Database.insert(doc, false);
+            if (result.isSuccess()) {
+                docid= result.getId();
+            } else {
+                for (Database.Error error : result.getErrors()) {
                     LogHandler.createLog((Id) null,'DisplayPDFController.getTemplateSections()','Template Id- '+templateId+' '+'Database Error while saving the result --> ',String.valueof(error),'Exception');
-                }               
+                }
             }
             selectedTemplateContents = MergeFieldsClass.mergefieldsMethod(selectedTemplateContents,recordId,replaceData);
             templatecontentsData.put('selectedTemplateContents',selectedTemplateContents);            

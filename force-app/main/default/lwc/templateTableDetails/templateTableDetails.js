@@ -16,9 +16,13 @@ import getConditions from '@salesforce/apex/RelatedObjectsClass.getExistingCondi
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
 import resetRulesForTemplate from '@salesforce/apex/RelatedObjectsClass.handleTemplateRuleResetCondition';
 import { NavigationMixin } from 'lightning/navigation';
+import { RefreshEvent } from 'lightning/refresh';
 
 export default class TemplateTableDetails extends NavigationMixin(LightningElement) {
-
+    imagesJSON = [];
+    @track showResizeModal = false;
+    @track showSectionCss = false;
+    sectioncssval = '';
     @api pdfLinks;
     @track tableOnLoad = true;
     @track tableDisplayed = false;
@@ -43,6 +47,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     isHeaderCellBgColor = false;
     isHeaderMergeField = false;
     isTableColumnSizeChange = false;
+    savedColumnWidths = {};
 
     imageUrls = [];
     mainimageUrls = [];
@@ -119,7 +124,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     allConstants({ error, data }) {
         if (data) {
             this.popUpMessage = data;
-            console.log('Success');
+            //console.log('Success');
         } else {
             this.error = error;
         }
@@ -434,12 +439,14 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         this.showImageModal = false;
         this.imageselected = true;
         this.selectedimageurl = '/sfc/servlet.shepherd/version/download/' + this.selectedimageid;
+        //let selectedImageData = `<img height="300px" width="300px" src="${this.selectedimageurl}"/>`;
+        //let selectedImageData = `<img  src="${this.selectedimageurl}"/>`
         let selectedImageData = `<img height="${this.selectedImageHeight}" width="${this.selectedImageWidth}" src="${this.selectedimageurl}"/>`;
         let elm = this.template.querySelector(`[data-id="${this.selectedTableRow}"]`);
-        elm.value = selectedImageData;
+        elm.value += selectedImageData;
         let innerdiv = this.selectedTableRow + 'div';
         let elm1 = this.template.querySelector(`[data-id="${innerdiv}"]`);
-        elm1.value = selectedImageData;
+        elm1.value += selectedImageData;
         this.template.querySelector('c-modal').hide();
     }
 
@@ -527,13 +534,15 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         let parentTd = divElement.closest('td');
         let backgroundColor = parentTd ? parentTd.style.backgroundColor : '';
         let cellColspan = parentTd ? parentTd.colSpan : 1;
+        let cellRowspan = parentTd ? parentTd.rowSpan : 1;
+
         //console.log('bg color ' + backgroundColor);
         //console.log('cell colspan ' + cellColspan);
 
         if (existingIndex !== -1) {
-            this.divContentArray[existingIndex] = { 'data-id': divElement.dataset.id, 'Content': divContent, 'backgroundColor': backgroundColor, 'cellColspan': cellColspan };
+            this.divContentArray[existingIndex] = { 'data-id': divElement.dataset.id, 'Content': divContent, 'backgroundColor': backgroundColor, 'cellColspan': cellColspan, 'cellRowspan': cellRowspan };
         } else {
-            this.divContentArray.push({ 'data-id': divElement.dataset.id, 'Content': divContent, 'backgroundColor': backgroundColor, 'cellColspan': cellColspan });
+            this.divContentArray.push({ 'data-id': divElement.dataset.id, 'Content': divContent, 'backgroundColor': backgroundColor, 'cellColspan': cellColspan, 'cellRowspan': cellRowspan });
         }
         //console.log('div content array ' + JSON.stringify(this.divContentArray));
     }
@@ -757,8 +766,8 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                 myObj.rowindex = i;
                 let columns = [];
                 for (let j = 1; j <= colcount; j++) {
-                    columns.push({ id: 'row' + i + 'col' + j, divid: 'row' + i + 'col' + j + 'div', isMerged: false, isRemoved: false, backgroundColor: false, colspan: 1 });
-                    this.tablecolumns.push({ id: 'row' + i + 'col' + j, divid: 'row' + i + 'col' + j + 'div', isMerged: false, isRemoved: false, backgroundColor: false, colspan: 1 });
+                    columns.push({ id: 'row' + i + 'col' + j, divid: 'row' + i + 'col' + j + 'div', isMerged: false, isRemoved: false, backgroundColor: false, colspan: 1, isRowRemoved: false, isRowMerged: false, rowSpan: 1 });
+                    this.tablecolumns.push({ id: 'row' + i + 'col' + j, divid: 'row' + i + 'col' + j + 'div', isMerged: false, isRemoved: false, backgroundColor: false, colspan: 1, isRowRemoved: false, isRowMerged: false, rowSpan: 1 });
                 }
                 myObj.columns = columns;
                 this.tablerows.push(myObj);
@@ -920,8 +929,18 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         else {
             let saveEvent = new CustomEvent('datasaved', { detail: true });
             this.dispatchEvent(saveEvent);
-            this.isColResizeCheck = false;
+
             this.isColSwapCheck = false;
+
+            if (this.isColResizeCheck && this.isHeaderSelectedCheck) {
+                this.tableheaders.forEach((header, index) => {
+                    const th = this.template.querySelector(`th:nth-child(${index + 1})`);
+                    this.savedColumnWidths[`column${index}`] = th.style.width;
+                });
+            }
+
+            this.isColResizeCheck = false;
+
             let jsonString = '';
             let obj = {};
             obj.rownumber = this.rownumber;
@@ -944,6 +963,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             jsonString = JSON.stringify(obj);
 
             this.Recorddetailsnew.DxCPQ__Section_Details__c = jsonString;
+            this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c = JSON.stringify(this.imagesJSON);
             let tableclass = this.template.querySelector('.tableMainClass');
 
             let colSwapRows = tableclass.querySelectorAll('.colswap');
@@ -956,9 +976,15 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                 row.parentNode.removeChild(row);
             });
 
-            let cleanedHtmlString = this.getCleanedHTMLString();
+            this.applySavedWidths();
 
-            this.Recorddetailsnew.DxCPQ__Section_Content__c = this.newpage ? `<div style="page-break-before: always;">${cleanedHtmlString}</div>` : cleanedHtmlString;
+            let cleanedHtmlString = this.getCleanedHTMLString();
+            cleanedHtmlString = cleanedHtmlString.replace(/  /g, '&nbsp;&nbsp;');
+
+            this.Recorddetailsnew.DxCPQ__Section_Content__c = this.newpage ? `<div style="page-break-before: always;${this.sectioncssval}">${cleanedHtmlString}</div>` : `<div style="${this.sectioncssval}">${cleanedHtmlString}</div>`;
+
+
+            // this.Recorddetailsnew.DxCPQ__Section_Content__c = this.newpage ? `<div style="page-break-before: always;">${cleanedHtmlString}</div>` : cleanedHtmlString;
 
             // if (this.newpage) {
             //     this.Recorddetailsnew.DxCPQ__Section_Content__c = "<div style=\"page-break-before : always;\">" + tableclass.innerHTML.replace(/hidden=""/g, '') + "</div>";
@@ -967,8 +993,6 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             // }
 
             this.Recorddetailsnew.DxCPQ__New_Page__c = this.newpage;
-
-            //this.Recorddetailsnew.DxCPQ__Section_Content__c = tableclass.innerHTML.replace(/hidden=""/g, '');
 
 
             this.Recorddetailsnew.DxCPQ__Document_Template__c = this.documenttemplaterecordid;
@@ -1014,6 +1038,15 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         }
     }
 
+    applySavedWidths() {
+        this.tableheaders.forEach((header, index) => {
+            const th = this.template.querySelector(`th:nth-child(${index + 1})`);
+            if (this.savedColumnWidths[`column${index}`]) {
+                th.style.width = this.savedColumnWidths[`column${index}`];
+            }
+        });
+    }
+
     getCleanedHTMLString() {
         let tableclass = this.template.querySelector('.tableMainClass');
         let parser = new DOMParser();
@@ -1024,6 +1057,14 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             if (cell.firstChild && cell.firstChild.tagName === 'LIGHTNING-INPUT-RICH-TEXT') {
                 cell.removeChild(cell.firstChild);
             }
+        });
+
+        domConverted.querySelectorAll('td').forEach(cell => {
+            let currentStyle = cell.getAttribute('style') || '';
+            if (!currentStyle.includes('vertical-align: top')) {
+                currentStyle += ' vertical-align: top;';
+            }
+            cell.setAttribute('style', currentStyle);
         });
 
         return new XMLSerializer().serializeToString(domConverted.body.firstChild);
@@ -1091,7 +1132,8 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             DxCPQ__Sequence__c: 0,
             DxCPQ__Type__c: '',
             Id: '',
-            DxCPQ__Section_Visibility_Rule__c: ''
+            DxCPQ__Section_Visibility_Rule__c: '',
+            DxCPQ__Resized_Images_Data__c: ''
         };
         this.handleRuleWrapperMaking();
         this.ruleIdCreated = null;
@@ -1217,6 +1259,11 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                 if (result != null) {
                     this.Recorddetailsnew = { ...this.Recorddetailsnew, ...result };
                     this.Recorddetailsnew.DxCPQ__Section_Visibility_Rule__c = result.DxCPQ__Section_Visibility_Rule__c;
+                    this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c = result.DxCPQ__Resized_Images_Data__c;
+                    if (this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c != '' || this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c != null) {
+                        this.resizedData = this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c;
+                        //console.log('this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c ', this.resizedData);
+                    }
                     let parsedJson = JSON.parse(this.Recorddetailsnew.DxCPQ__Section_Details__c);
 
                     parsedContent = parsedJson.sectionInfo;
@@ -1228,7 +1275,9 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                     this.selectedBFontColor = parsedJson.bodyFont;
                     this.selectedHFontColor = parsedJson.headerFont;
                     this.selectedHbgColor = parsedJson.headbackground;
+
                     this.fontfamily = parsedJson.fontfamily;
+
                     this.fontsize = parsedJson.fontsize;
                     this.isSerialNumberCheck = parsedJson.serialNumberColumn;
                     this.isHeaderSelectedCheck = parsedJson.headersIncluded;
@@ -1236,15 +1285,13 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                     this.selectedBorderStyle = parsedJson.borderstyle;
                     this.tablehasdata = true;
                     this.newPage = parsedJson.newPage;
-                    // setTimeout(() => {
-                    //     this.template.querySelector('[data-id="newPageTable"]').checked = parsedJson.newPage;
-                    // });
                     setTimeout(() => {
+                        //this.template.querySelector('[data-id="newPageTable"]').checked = parsedJson.newPage;
                         try {
                             this.template.querySelector('[data-id="newPageTable"]').checked = this.newpage;
                         }
                         catch (error) {
-                            console.log('error in setTimeout for checked error table >> ', error.message);
+                            console.log('error in Table new Page ', error.message);
                         }
                     });
                     if (result.DxCPQ__Section_Visibility_Rule__c != null && result.DxCPQ__Section_Visibility_Rule__c != '') {
@@ -1833,9 +1880,77 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         this.confirmMergeCell = false;
         this.mergeBodyCell = false;
         this.mergeHeaderCell = false;
-
     }
 
+    handleMergeRowClick(event) {
+        let selectedDiv = this.template.querySelector(`[data-id="${this.selectedTableRow}"]`);
+        let rowIndex = parseInt(this.selectedTableRow.match(/row(\d+)/)[1]) - 1;
+        let selectedTd = selectedDiv.closest('td');
+
+        if (selectedTd) {
+            let columnIndex = Array.from(selectedTd.parentElement.children).indexOf(selectedTd);
+            let totalRows = this.tablerows.length;
+
+            let currentRowSpan = parseInt(selectedTd.getAttribute('rowSpan')) || 1;
+            let newRowSpan = currentRowSpan;
+
+            for (let i = rowIndex + 1; i < totalRows; i++) {
+                let nextRow = this.tablerows[i];
+                let nextTd = this.template.querySelector(`[data-id="${nextRow.columns[columnIndex].id}"]`).closest('td');
+
+                if (nextRow.columns[columnIndex].isRowMerged || nextRow.columns[columnIndex].isRowRemoved) {
+                    continue;
+                }
+
+                if (nextTd) {
+                    let nextRowSpan = parseInt(nextTd.getAttribute('rowSpan')) || 1;
+                    newRowSpan += nextRowSpan;
+
+                    selectedTd.setAttribute('rowSpan', newRowSpan);
+
+                    nextTd.style.display = 'none';
+                    nextRow.columns[columnIndex].isRowRemoved = true;
+
+                    this.tablerows[rowIndex].columns[columnIndex].isRowMerged = true;
+
+                    // Update divContentArray
+                    let key = selectedDiv.dataset.id + 'div';
+                    let divElement = this.template.querySelector(`[data-id="${key}"]`);
+                    let divContent = divElement ? divElement.innerHTML : '';
+                    let backgroundColor = selectedTd.style.backgroundColor || '';
+                    let existingIndex = this.divContentArray.findIndex(item => item['data-id'] === key);
+
+                    if (existingIndex !== -1) {
+                        this.divContentArray[existingIndex] = {
+                            'data-id': key,
+                            'Content': divContent,
+                            'backgroundColor': backgroundColor,
+                            'cellRowspan': newRowSpan
+                        };
+                    } else {
+                        this.divContentArray.push({
+                            'data-id': key,
+                            'Content': divContent,
+                            'backgroundColor': backgroundColor,
+                            'cellRowspan': newRowSpan
+                        });
+                    }
+                    break;
+                } else {
+                    this.showErrorToast('Cannot merge with this cell.');
+                    break;
+                }
+            }
+        } else {
+            this.showErrorToast('Cannot merge cell.');
+        }
+        //console.log('div content array ' + JSON.stringify(this.divContentArray));
+        this.template.querySelector('c-modal').hide();
+        this.ruleCondition = false;
+        this.confirmMergeCell = false;
+        this.mergeBodyCell = false;
+        this.mergeHeaderCell = false;
+    }
 
     getNextVisibleElement(element, tagName) {
         let sibling = element.nextElementSibling;
@@ -2021,6 +2136,8 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             let deltaX = moveEvent.clientX - startX;
             let newWidth = startingWidth + deltaX;
             th.style.width = `${newWidth}px`;
+
+            this.savedColumnWidths[`column${index}`] = `${newWidth}px`;
         };
 
         let handleMouseUp = () => {
@@ -2189,16 +2306,342 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     }
 
     //code added by Bhavya to redirect to the help Document for Table Section
-    handlehelp(){
+    handlehelp() {
         let relatedObjectsMap = this.pdfLinks.find(item => item.MasterLabel === 'Table');
         let pdfUrl = relatedObjectsMap ? relatedObjectsMap.DxCPQ__Section_PDF_URL__c : null;
         const config = {
-        type: 'standard__webPage',
-        attributes: {
-            url: pdfUrl
+            type: 'standard__webPage',
+            attributes: {
+                url: pdfUrl
             }
         };
         this[NavigationMixin.Navigate](config);
+    }
+
+    //code added by Bhavya to have Resize Image button Globally
+
+    handleResizeImage(event) {
+        this.showImageModal = false;
+        let tableclass = this.template.querySelector('.tableMainClass');
+        this.tableInput = tableclass.innerHTML;
+        //console.log('tableInput info ---> ', this.tableInput);
+        this.reloadVar = false;
+        const imgTagRegexWithStyle = /<img[^>]+src="([^">]+)"[^>]*style="([^"]*)"/g;
+        const imgTagRegexWithoutStyle = /<img[^>]+src="([^">]+)"/g;
+        this.srcs = [];
+        let matches;
+        let val = 0;
+        const processedUrls = new Set();
+
+        // First process images with style attributes
+        while ((matches = imgTagRegexWithStyle.exec(this.tableInput)) !== null) {
+            const src = matches[1];
+            const styleString = matches[2];
+
+            let width = null;
+            let height = null;
+
+            const widthMatch = /width:\s*(\d+)px/.exec(styleString);
+            const heightMatch = /height:\s*(\d+)px/.exec(styleString);
+
+            if (widthMatch) {
+                width = widthMatch[1];
+            }
+
+            if (heightMatch) {
+                height = heightMatch[1];
+            }
+
+            this.srcs.push({
+                id: val,
+                // URL: src.includes(this.domainbaseUrl) ? src : this.domainbaseUrl + src,
+                URL: src,
+                width: width,
+                height: height,
+                cvId: src.split('/').pop()
+            });
+
+            processedUrls.add(src);
+            val++;
+        }
+
+        // Now process images without style attributes, skipping already processed URLs
+        while ((matches = imgTagRegexWithoutStyle.exec(this.tableInput)) !== null) {
+            const src = matches[1];
+
+            if (!processedUrls.has(src)) {
+                this.srcs.push({
+                    id: val,
+                    URL: src,
+                    // URL: src.includes(this.domainbaseUrl) ? src : this.domainbaseUrl + src,
+                    width: null,
+                    height: null,
+                    cvId: src.split('/').pop()
+                });
+
+                val++;
+            }
+        }
+
+        this.showNoImgErr = this.srcs.length > 0 ? false : true;
+
+        this.fetchImageDimensions().then(() => {
+            if (this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c) {
+                const resizedImagesData = JSON.parse(this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c);
+                this.srcs = this.srcs.map(src => {
+                    const resizedImageData = resizedImagesData.find(image => image.rCVID === src.cvId);
+                    if (resizedImageData) {
+                        return {
+                            ...src,
+                            width: resizedImageData.oWidth,
+                            height: resizedImageData.oHeight,
+                            rwidth: resizedImageData.rWidth,
+                            rheight: resizedImageData.rHeight,
+                            cvId: resizedImageData.oCVID,
+                            rcvid: resizedImageData.rCVID,
+                            URL: src.URL.replace(/[^/]+$/, resizedImageData.oCVID)
+                        };
+                    }
+                    return src;
+                });
+            }
+            else if (this.imagesJSON.length > 0) {
+                //console.log('this.imagesJSON inside fetchImageDimensions ---> ', this.imagesJSON);
+                this.srcs = this.srcs.map(src => {
+                    const resizedImageData = this.imagesJSON.find(image => image.rCVID === src.cvId);
+                    if (resizedImageData) {
+                        return {
+                            ...src,
+                            width: resizedImageData.oWidth,
+                            height: resizedImageData.oHeight,
+                            rwidth: resizedImageData.rWidth,
+                            rheight: resizedImageData.rHeight,
+                            cvId: resizedImageData.oCVID,
+                            rcvid: resizedImageData.rCVID,
+                            URL: src.URL.replace(/[^/]+$/, resizedImageData.oCVID)
+                        };
+                    }
+                    return src;
+                });
+            }
+
+            this.showMergeField = false;
+            this.isModalOpen = false;
+            this.showResizeModal = this.srcs.length > 0 ? true : false;
+            this.template.querySelector('c-modal').show();
+        }).catch(error => {
+            console.error('Error fetching image dimensions:', error);
+        });
+        //console.log('srcs list -----> ', this.srcs);
+    }
+
+    fetchImageDimensions() {
+        const promises = this.srcs.map((image, index) => {
+            if (image.width && image.height) {
+                return Promise.resolve();
+            }
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.src = image.URL;
+                img.onload = () => {
+                    this.srcs[index] = {
+                        ...image,
+                        width: img.naturalWidth,
+                        height: img.naturalHeight
+                    };
+                    //console.log('this.srcs after width and height update ---------> ', this.srcs);
+                    resolve();
+                };
+                img.onerror = () => {
+                    console.error(`Failed to load image: ${image.URL}`);
+                    resolve();
+                };
+            });
+        });
+
+        return Promise.all(promises);
+    }
+
+    //code added by Bhavya for gettting the ImagesJSON from pocRTA cmp
+    handleModalClose(event) {
+
+        this.process = event.detail ? event.detail.process : '';
+        this.imagesJSON = event.detail ? event.detail.imagesJSON : null;
+        let lstData = event.detail ? event.detail.cvLst : null;
+        if (lstData) {
+            let newSet = new Set(this.cvLst);
+            lstData.forEach(item => {
+                newSet.add(item);
+            });
+
+            this.cvLst = Array.from(newSet);
+        }
+        //console.log('Received this.cvLst from child:', this.cvLst);
+        //console.log('Received imagesJSON from child:', this.imagesJSON);
+        if (this.imagesJSON.length > 0 && this.process !== 'Cancel') {
+            //console.log('printing modifiedHtml inside the handleModalclose --> ', this.tableInput);
+            //code to modify the tableInput with the updated resized CVIDs
+            let modifiedHtml = this.tableInput;
+            const { updatedStr, updatedDivContentArray } = this.updateImageSrc(modifiedHtml, this.imagesJSON, this.divContentArray);
+            //console.log('divData updated in handlemodalclose --> ', updatedDivContentArray);
+            this.tableInput = updatedStr;
+            // let tableclass = this.template.querySelector('.tableMainClass');
+            // tableclass.innerHTML = this.tableInput;
+            //console.log('modifiedStr updated in handleModalClose', updatedStr);
+            this.divContentArray = updatedDivContentArray;
+            let parsedContent = this.divContentArray;
+            this.template.querySelectorAll('lightning-input-rich-text').forEach(element => {
+                if (parsedContent != null && parsedContent != undefined) {
+                    parsedContent.forEach(item => {
+                        if (item['data-id'].startsWith(element.dataset.id) || item['data-id'].startsWith(element.dataset.head)) {
+
+                            if (item['Content'] != null && item['Content'] != undefined) {
+                                element.value = item['Content'];
+                                element.style.wordWrap = "break-word";
+                                element.style.overflowY = "auto";
+                                element.style.overflowX = "hidden";
+                            }
+                            if (item['backgroundColor']) {
+                                let parentElement = element.closest('td') || element.closest('th');
+                                if (parentElement) {
+                                    parentElement.style.backgroundColor = item['backgroundColor'];
+                                }
+                            }
+
+                            // Fix for merging cells 
+                            if (item['cellColspan'] && item['cellColspan'] > 1) {
+                                let parentElement = element.closest('td') || element.closest('th');
+                                if (parentElement) {
+                                    parentElement.setAttribute('colspan', item['cellColspan']);
+
+                                    let sibling = parentElement.nextElementSibling;
+                                    for (let i = 1; i < item['cellColspan']; i++) {
+                                        if (sibling) {
+                                            sibling.style.display = 'none';
+                                            sibling = sibling.nextElementSibling;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+            this.template.querySelectorAll('div.hiddencells').forEach(divElement => {
+
+                if (parsedContent != null && parsedContent != undefined) {
+                    parsedContent.forEach(item => {
+                        if (item['data-id'] == divElement.dataset.id) {
+                            if (item['Content'] != null && item['Content'] != undefined) {
+                                divElement.innerHTML = item['Content'];
+                                divElement.style.wordWrap = "break-word";
+                            }
+                            if (item['backgroundColor']) {
+                                let parentElement = divElement.closest('td') || divElement.closest('th');
+                                if (parentElement) {
+                                    parentElement.style.backgroundColor = item['backgroundColor'];
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+
+        }
+
+        this.template.querySelector('c-modal').hide();
+        this.dispatchEvent(new RefreshEvent());
+    }
+
+    updateImageSrc(str, imagesJSON, divContentArray) {
+        const imgTagRegex = /<img\s+[^>]*src=["']([^"']*)["'][^>]*>/g;
+        let imgSrcs = [];
+        let match;
+
+        // Extract all img srcs from the HTML string
+        while ((match = imgTagRegex.exec(str)) !== null) {
+            imgSrcs.push(match[1]);
+        }
+
+        // Loop through each src found
+        imgSrcs.forEach((src, index) => {
+            let idRegex = /\/([a-zA-Z0-9]+)$/;
+            let idMatch = src.match(idRegex);
+            if (idMatch && imagesJSON[index]) {
+                let newId = imagesJSON[index].rCVID != null ? imagesJSON[index].rCVID : imagesJSON[index].oCVID;
+                let newSrc = src.replace(idMatch[1], newId);
+                str = str.replace(src, newSrc); // Update the string with the new image source
+
+                // Now, update the corresponding divContentArray and table cells
+                divContentArray.forEach(row => {
+                    // Handle headers that don't have columns
+                    if (!row.columns) {
+                        let key = row.divid || row['data-id'];
+                        let elm = this.template.querySelector(`[data-id="${key}"]`);
+
+                        if (elm && elm.innerHTML.includes(src)) {
+                            // Update divContentArray with the new src
+                            row.Content = row.Content.replace(src, newSrc);
+
+                            // Update the actual table element's innerHTML
+                            elm.innerHTML = row.Content;
+                        }
+                    } else {
+                        // Process body rows with columns
+                        row.columns.forEach(column => {
+                            let key = column.divid;
+                            let elm = this.template.querySelector(`[data-id="${key}"]`);
+
+                            if (elm && elm.innerHTML.includes(src)) {
+                                // Update divContentArray with the new src
+                                column.Content = column.Content.replace(src, newSrc);
+
+                                // Update the actual table element's innerHTML
+                                elm.innerHTML = column.Content;
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+        // Return updated HTML string and divContentArray
+        return { updatedStr: str, updatedDivContentArray: divContentArray };
+    }
+
+
+
+    //code added by Bhavya for Section CSS
+    @track showSectionCss = false;
+    sectioncssval = '';
+    handleSectionCss(event) {
+        this.showSectionCss = true;
+        this.showmergefield = false;
+        this.showImageModal = false;
+        this.ruleCondition = false;
+        this.confirmMergeCell = false;
+        this.showCellBgColor = false;
+        this.isClearTable = false;
+        this.isTableColumnSizeChange = false;
+        this.template.querySelector('c-modal').show();
+
+    }
+
+    handleSectionCSSInput(event) {
+        this.sectioncssval = event.target.value;
+        //console.log('section css --> ', this.sectioncssval);
+    }
+
+    handleSecCSSSave(event) {
+        //console.log('inside handleSecCSSSave sectioncssval --> ', this.sectioncssval);
+        this.template.querySelector('c-modal').hide();
+    }
+
+    handleSecCSSCancel(event) {
+        //console.log('inside handleSecCSSCancel sectioncssval --> ', this.sectioncssval);
+        this.sectioncssval = '';
+        this.template.querySelector('c-modal').hide();
     }
 
 }
