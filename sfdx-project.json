@@ -21,11 +21,11 @@
       "path": "force-app",
       "package": "Dx_Templates",
       "versionName": "",
-      "versionNumber": "0.16.0.NEXT",
+      "versionNumber": "0.19.0.NEXT",
       "default": false,
       "versionDescription": "",
       "postInstallScript": "PostInstallDataCreation",
-      "ancestorVersion": "NONE"
+      "ancestorVersion": "HIGHEST"
     },
     {
       "path": "force-app",
@@ -141,6 +141,9 @@
     "Dx_Templates@0.13.0-1": "04tQm0000023ME9IAM",
     "Dx_Templates@0.14.0-1": "04tQm0000023XPhIAM",
     "Dx_Templates@0.15.0-1": "04tQm0000023XXlIAM",
-    "Dx_Templates@0.16.0-1": "04tQm0000027eSbIAI"
+    "Dx_Templates@0.16.0-1": "04tQm0000027eSbIAI",
+    "Dx_Templates@0.17.0-1": "04tQm000002O3YIIA0",
+    "Dx_Templates@0.18.0-1": "04tQm000002O5gXIAS",
+    "Dx_Templates@0.19.0-1": "04tQm000002O61VIAS"
   }
 }

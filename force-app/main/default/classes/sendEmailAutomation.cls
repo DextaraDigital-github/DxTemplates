@@ -82,8 +82,7 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
             pg.getParameters().put('selectedPageOrientation',attachmentOrientation);
             
             /* Attachment Generation and Insertion of the generated Document to Parent Record */
-            if(!isSpecificToFox && emailStructure==null){
-
+            if(!isSpecificToFox && emailStructure==null) {
                 Attachment documentAttachment = new Attachment();
                     documentAttachment.Name = attachmentName;
                     documentAttachment.ParentId = attachmentParentId; 
@@ -104,6 +103,13 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
                     Database.rollback(sp1);
                     throw new SafeClassException(String.join( errorList, ', ' ));
                 }
+
+                DXTemplates_HandlerClass__mdt metaDataContent = [SELECT Id,Label,HandlerClassName__c FROM DXTemplates_HandlerClass__mdt where Label = 'HandlerClass'];
+                if(metaDataContent != null) {
+                    Type objectType = Type.forName(metaDataContent.HandlerClassName__c);
+                    DXHandlerInterface api = (DXHandlerInterface)objectType.newInstance();
+                    Map<String,Object> replaceData = api.execute(null);
+                }  
 
             } else {
                 Attachment documentAttachment = new Attachment();
