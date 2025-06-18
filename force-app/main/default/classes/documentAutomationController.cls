@@ -146,9 +146,9 @@ global with sharing class documentAutomationController {
             }
             
             /* Document__c record Formation */
-            sectionContentRecord.Document_Body__c = documentContent;
             sectionContentRecord.Document_Template__c = templateId;
             sectionContentRecord.Document_Content__c = String.valueof(headerFooterSectionMap).replace('\"header\"=','\"header\":').replace('\"footer\"=','\"footer\":');
+            sectionContentRecord.DxCPQ__Sequence__c = -1;
             
             Savepoint sp = Database.setSavepoint();
             List<Database.SaveResult> sResult = safe.doInsert(new Document__c[] {sectionContentRecord});
@@ -170,6 +170,48 @@ global with sharing class documentAutomationController {
                     insertedDocumentId = null;
                 }               
             }
+            string documentId = insertedDocumentId;
+            //Enter 100000 logic from here
+            List<Document__c> doctobeinserted=new List<Document__c>();
+            Integer bodyLength = 100000;
+            Integer totalDocNumber = (documentContent.length()/bodyLength) +1;
+            List<Document__c> docList = new List<Document__c>();
+            Integer startBody=0;
+            Integer endBody = 0;
+            for (integer i=0; i<totalDocNumber; i++){
+                Document__c childSectionContentRecord = new Document__c();
+                endBody = startBody + bodyLength;
+                endBody = endBody>documentContent.length() ? documentContent.length() : endBody;
+                String contentChunk = documentContent.substring(startBody, endBody);
+                childSectionContentRecord.Sequence__c = i;
+                childSectionContentRecord.Document_Body__c = contentChunk;
+                childSectionContentRecord.DxCPQ__External_Id__c = documentId;
+                docList.add(childSectionContentRecord);
+                startBody = endBody;
+            }
+            List<Database.SaveResult> sResult1 = safe.doInsert(docList);
+            List<String> errorList1 = Safely.safeClassExceptionHandlerInsert(sResult1);
+            
+            if(errorList1.size()>0) {
+                Database.rollback(sp);
+                throw new SafeClassException(String.join( errorList1, ', ' ));
+            }
+            List <Id> insertedDocumentIds = new List<Id> ();
+            for(Integer i=0;i<sResult1.size();i++) {
+                if(sResult1.get(i).isSuccess()) {
+                    if(sResult1.get(i).getId() != null) {
+                        System.debug('sResult1- '+sResult1.get(i).getId());
+                        insertedDocumentIds.add(sResult1.get(i).getId());
+                    }
+                } else if (!sResult1.get(i).isSuccess()) {
+                    Database.Error error = sResult1.get(i).getErrors().get(0);
+                    String failedDML = error.getMessage();
+                    insertedDocumentIds[i] = null;
+                    throw new SafeClassException(String.join( new List<String> {failedDML}, ', '));
+                }
+            }
+            //End bulkify logic
+
         } catch(Exception ex){
             LogHandler.createLog((Id) null,'documentAutomationController.documentGenerationForAutomationContext()','Document Id- '+insertedDocumentId+' '+ex.getLineNumber()+ex.getStackTraceString()+ex.getCause(),ex.getMessage(),'Exception');
         }

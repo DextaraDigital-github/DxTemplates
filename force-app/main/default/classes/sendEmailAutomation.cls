@@ -36,7 +36,7 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
         this.attachmentParentId = attachmentParentId;
         this.isSpecificToFox = false;
         this.emailStructure = null;
-        this.attachmentOrientation = 'Potrait';
+        this.attachmentOrientation = 'Portrait';
         this.attachmentPageSize = 'A4';
     }
     
