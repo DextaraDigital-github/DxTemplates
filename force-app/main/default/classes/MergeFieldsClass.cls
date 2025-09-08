@@ -88,6 +88,15 @@ public with sharing class MergeFieldsClass {
                     sec.Section_Content__c=sec.Section_Content__c.replace(sec.Section_Content__c, str);   
                 }
             }
+            else if(mainstr.contains('##'))
+            {
+                 for(Document_Template_Section__c sec: selectedTemplateContents)
+                { 
+                    String replaceStr = replaceTableSectionContent(sec.Section_Content__c);
+                    sec.Section_Content__c=sec.Section_Content__c.replace(sec.Section_Content__c, replaceStr);   
+                }
+                
+            }
             
             Pattern p = Pattern.compile('\\{!.+?\\}');
             Matcher m = p.matcher(mainstr);
@@ -639,5 +648,37 @@ public with sharing class MergeFieldsClass {
         List<String> parts = token.split('\\.');
         String lastPart = parts[parts.size() - 1];
         return data.containsKey(lastPart) ? String.valueOf(data.get(lastPart)) : '';
+    }
+    
+    //Method Added for Nested Tables Implementation 
+    public static String replaceTableSectionContent(String mainstr) {   
+        Pattern pattern = Pattern.compile('##(.*?)##');
+        Matcher matcher = pattern.matcher(mainstr);
+        
+        String modifiedStr = mainstr;
+    
+        while (matcher.find()) {
+            String extractedValue = matcher.group(1);
+    
+            try {
+                Document_Template_Section__c section = [
+                    SELECT Section_Content__c
+                    FROM Document_Template_Section__c
+                    WHERE Type__c = 'Table' AND Name = :extractedValue
+                    LIMIT 1
+                ];
+    
+                if (section != null && String.isNotEmpty(section.Section_Content__c)) {
+                    String sectionContent = section.Section_Content__c;
+                    
+                    modifiedStr = modifiedStr.replaceFirst('##' + extractedValue + '##', sectionContent);
+                } else {
+                    System.debug('No matching record found');
+                }
+            } catch (Exception e) {
+                System.debug('Error during string replacement: ' + e.getMessage());
+            }
+        }    
+        return modifiedStr;
     }
 }
