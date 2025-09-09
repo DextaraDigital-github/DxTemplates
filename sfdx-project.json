@@ -21,7 +21,7 @@
       "path": "force-app",
       "package": "Dx_Templates",
       "versionName": "",
-      "versionNumber": "0.20.0.NEXT",
+      "versionNumber": "0.21.0.NEXT",
       "default": false,
       "versionDescription": "",
       "postInstallScript": "PostInstallDataCreation",
@@ -145,6 +145,7 @@
     "Dx_Templates@0.17.0-1": "04tQm000002O3YIIA0",
     "Dx_Templates@0.18.0-1": "04tQm000002O5gXIAS",
     "Dx_Templates@0.19.0-1": "04tQm000002O61VIAS",
-    "Dx_Templates@0.20.0-1": "04tQm000002YIUPIA4"
+    "Dx_Templates@0.20.0-1": "04tQm000002YIUPIA4",
+    "Dx_Templates@0.21.0-1": "04tQm000002wBmjIAE"
   }
 }
