@@ -21,7 +21,7 @@ public with sharing class MergeFieldsClass {
      * @return         List<Document_Template_Section__c> The modified template contents with merged fields
      */
       
-     public static List<Document_Template_Section__c> mergefieldsMethod(List<Document_Template_Section__c> selectedTemplateContents, Id recordId,Map<String,Object> replaceData) {   
+     public static List<Document_Template_Section__c> mergefieldsMethod(List<Document_Template_Section__c> selectedTemplateContents, Id recordId, Map<String,Object> replaceData) {   
         try{
             Id templateSectionId;
             String objectName = recordId.getSObjectType().getDescribe().getName();
@@ -79,6 +79,7 @@ public with sharing class MergeFieldsClass {
                 }
             }
             String mainObject=objectName;
+            List<String> childTablesNames = new List<String>();
             /* <Checks if string contains %% if yes then customLogic method is called> */
             if(mainstr.contains('%%') && replaceData.size()>0)
             {           
@@ -92,11 +93,21 @@ public with sharing class MergeFieldsClass {
             {
                  for(Document_Template_Section__c sec: selectedTemplateContents)
                 { 
-                    String replaceStr = replaceTableSectionContent(sec.Section_Content__c);
-                    sec.Section_Content__c=sec.Section_Content__c.replace(sec.Section_Content__c, replaceStr);   
+                    List<string> replaceStr = replaceTableSectionContent(sec.Section_Content__c);
+                    sec.Section_Content__c=sec.Section_Content__c.replace(sec.Section_Content__c, replaceStr[0]);
+                    replaceStr[0]='';
+                    childTablesNames.addAll(replaceStr);
                 }
                 
             }
+            
+            List<Document_Template_Section__c> filteredList = new List<Document_Template_Section__c>();
+            for (Document_Template_Section__c sec : selectedTemplateContents) {
+                if (!childTablesNames.contains(sec.Name)) {
+                    filteredList.add(sec);
+                }
+            }
+            selectedTemplateContents = filteredList; 
             
             Pattern p = Pattern.compile('\\{!.+?\\}');
             Matcher m = p.matcher(mainstr);
@@ -651,18 +662,15 @@ public with sharing class MergeFieldsClass {
     }
     
     //Method Added for Nested Tables Implementation 
-    public static String replaceTableSectionContent(String mainstr) {   
+    public static List<String> replaceTableSectionContent(String mainstr) {   
         Pattern pattern = Pattern.compile('##(.*?)##');
         Matcher matcher = pattern.matcher(mainstr);
-        
-        String modifiedStr = mainstr;
-    
+        List<String> modifiedStr = new List<String> {mainstr};
         while (matcher.find()) {
             String extractedValue = matcher.group(1);
-    
             try {
                 Document_Template_Section__c section = [
-                    SELECT Section_Content__c
+                    SELECT Section_Content__c,name
                     FROM Document_Template_Section__c
                     WHERE Type__c = 'Table' AND Name = :extractedValue
                     LIMIT 1
@@ -670,8 +678,8 @@ public with sharing class MergeFieldsClass {
     
                 if (section != null && String.isNotEmpty(section.Section_Content__c)) {
                     String sectionContent = section.Section_Content__c;
-                    
-                    modifiedStr = modifiedStr.replaceFirst('##' + extractedValue + '##', sectionContent);
+                    modifiedStr.add(extractedValue);
+                    modifiedStr[0] = modifiedStr[0].replaceFirst('##' + extractedValue + '##', sectionContent);
                 } else {
                     System.debug('No matching record found');
                 }

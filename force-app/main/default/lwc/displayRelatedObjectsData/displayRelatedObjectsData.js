@@ -247,7 +247,7 @@ export default class DisplayRelatedObjectsData extends LightningElement {
             } else { 
                 cellData.value = records[i]; 
             }
-            cellData.style = (index%2 == 0) ? `border: 1px solid black; text-align: center; background-color:transparent;font-family:${this.recordDataFontFamily}` : `border: 1px solid black; text-align: center; background-color:#75736E; font-family:${this.recordDataFontFamily}`;                                    
+            cellData.style = (index%2 == 0) ? `border: 1px solid black; text-align: center; background-color:transparent;font-family:${this.recordDataFontFamily}` : `border: 1px solid black; text-align: center; background-color:#d9d9d9; font-family:${this.recordDataFontFamily}`;                                    
             cellData.imgcell = false;
             if (records[i - 1] == 'CURRENCY' || records[i - 1] == 'NUMBER' || records[i - 1] == 'BOOLEAN') {
                 cellData.width = '30px';
