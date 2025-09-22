@@ -602,7 +602,7 @@ global with sharing class DisplayPDFController
     public static Map<String,Object> getTemplateSections(ID templateId, String recordId, String objectApiName){ 
         try{
             Map<String,Object> templatecontentsData=new Map<String,Object>();
-            List<Document_Template_Section__c> selectedTemplateContents=[select id,Section_Content__c, Type__c, New_Page__c, Sequence__c, Section_Visibility_Rule__c from Document_Template_Section__c where Document_Template__c=:templateId WITH SECURITY_ENFORCED ORDER BY Sequence__c ASC];
+            List<Document_Template_Section__c> selectedTemplateContents=[select id,name,Section_Content__c, Type__c, New_Page__c, Sequence__c, Section_Visibility_Rule__c from Document_Template_Section__c where Document_Template__c=:templateId WITH SECURITY_ENFORCED ORDER BY Sequence__c ASC];
             //code added by Tanmayee and Bhavya
             List<Id> sectionVisibilityId = new List<Id>();
             for(Document_Template_Section__c sec:selectedTemplateContents){
@@ -628,7 +628,8 @@ global with sharing class DisplayPDFController
                 Map<String,Object> tempData= new Map<String,Object>();
                 tempData.put('templateId',templateId);
                 tempData.put('recordId',recordId);
-                replaceData=api.execute(tempData);                
+                replaceData = api.execute(tempData);  
+                System.debug('replaceData in apex block >> '+ replaceData);
             }
             if(!string.isEmpty(templateData[0].FlowId__c)) {
                     List <FlowDefinitionView> flownames= [SELECT  Label, ApiName,Id,DurableId FROM FlowDefinitionView where ProcessType='AutoLaunchedFlow' AND IsActive=True AND DurableId=:templateData[0].FlowId__c WITH SECURITY_ENFORCED];   
