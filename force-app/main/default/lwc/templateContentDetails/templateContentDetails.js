@@ -11,7 +11,6 @@ import createRuleCondition from '@salesforce/apex/RelatedObjectsClass.createRule
 import getConditions from '@salesforce/apex/RelatedObjectsClass.getExistingConditions';
 import getDomainUrl from '@salesforce/apex/PdfDisplay.getDomainUrl';
 import deleteContentVersions from '@salesforce/apex/ScreenshotController.deleteContentVersions'; 
-import updateContentVersions from '@salesforce/apex/ScreenshotController.updateContentVersions';
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
 import resetRulesForTemplate from '@salesforce/apex/RelatedObjectsClass.handleTemplateRuleResetCondition';

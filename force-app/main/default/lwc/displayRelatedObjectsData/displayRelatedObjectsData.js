@@ -1,4 +1,4 @@
-import { LightningElement, wire, api, track } from 'lwc';
+import { LightningElement, api, track } from 'lwc';
 import getsectionData from '@salesforce/apex/DisplayRelatedObjects.getsectionData';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import createLog from '@salesforce/apex/LogHandler.createLog';

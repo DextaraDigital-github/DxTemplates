@@ -1,4 +1,4 @@
-import { api, LightningElement, wire } from 'lwc';
+import { api, LightningElement } from 'lwc';
 
 export default class DxCpqMenuSetupRow extends LightningElement {
     @api myWrapper;

@@ -9,14 +9,12 @@ import getAllPopupMessages from '@salesforce/apex/PopUpMessageSelector.getAllCon
 import gettemplatesectiondata from '@salesforce/apex/SaveDocumentTemplatesection.gettemplatesectiondata';
 import getContentVersions from '@salesforce/apex/FooterClass.getContentVersions';
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
-import createLog from '@salesforce/apex/LogHandler.createLog';
 import getSObjectListFiltering from '@salesforce/apex/RelatedObjectsClass.getSObjectListFiltering';
 import createRuleCondition from '@salesforce/apex/RelatedObjectsClass.createRuleCondition';
 import getConditions from '@salesforce/apex/RelatedObjectsClass.getExistingConditions';
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
 import resetRulesForTemplate from '@salesforce/apex/RelatedObjectsClass.handleTemplateRuleResetCondition';
 import { NavigationMixin } from 'lightning/navigation';
-import { RefreshEvent } from 'lightning/refresh';
 
 export default class TemplateTableDetails extends NavigationMixin(LightningElement) {
     imagesJSON = [];

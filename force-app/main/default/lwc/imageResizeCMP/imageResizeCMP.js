@@ -2,7 +2,6 @@ import { LightningElement, track, api } from 'lwc';
 //import saveImage from '@salesforce/apex/ScreenshotController.saveImage';
 import getImageBase64 from '@salesforce/apex/ScreenshotController.getImageBase64';
 import saveImageBase64 from '@salesforce/apex/ScreenshotController.saveImageBase64';
-import deleteContentVersions from '@salesforce/apex/ScreenshotController.deleteContentVersions';
 
 export default class Poc_RTA extends LightningElement {
     @api images;

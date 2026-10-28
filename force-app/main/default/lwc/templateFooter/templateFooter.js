@@ -3,7 +3,6 @@ import getContentVersions from '@salesforce/apex/FooterClass.getContentVersions'
 import saveDocumentTemplateSectionDetails from '@salesforce/apex/SaveDocumentTemplatesection.saveDocumentTemplateSectionDetails';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import gettemplatesectiondata from '@salesforce/apex/SaveDocumentTemplatesection.gettemplatesectiondata';
-import createLog from '@salesforce/apex/LogHandler.createLog';
 import { NavigationMixin } from 'lightning/navigation';
 
 export default class TemplateFooter extends NavigationMixin(LightningElement) {

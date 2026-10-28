@@ -1,11 +1,10 @@
 import { LightningElement, api,wire,track} from 'lwc';
 import getTemplateSections from '@salesforce/apex/DisplayPDFController.getTemplateSections';
-import getTemplateSectionsMulRecords from '@salesforce/apex/DisplayPDFController.getTemplateSectionsMulRecords';
 import generateDocument from '@salesforce/apex/DisplayPDFController.generateDocument';
 import generatePDFAttachment from '@salesforce/apex/DisplayPDFController.generatePDFAttachment';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getAllPopupMessages from '@salesforce/apex/PopUpMessageSelector.getAllConstants';
-import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
+import { loadStyle } from 'lightning/platformResourceLoader';
 import rte_tbl from '@salesforce/resourceUrl/rte_tbl';
 
 export default class DxShowSelectedTemplate extends LightningElement {

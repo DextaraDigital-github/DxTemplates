@@ -1,5 +1,5 @@
 import rte_tbl from '@salesforce/resourceUrl/rte_tbl';
-import {api, LightningElement, track, wire } from 'lwc';
+import { api, LightningElement, track } from 'lwc';
 import {loadStyle } from 'lightning/platformResourceLoader';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import dexcpqcartstylesCSS from '@salesforce/resourceUrl/dexcpqcartstyles';

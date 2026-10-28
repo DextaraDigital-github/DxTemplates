@@ -1,6 +1,6 @@
-import { LightningElement, track, api, wire } from 'lwc';
+import { LightningElement, track, api } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
-import { loadScript,loadStyle } from 'lightning/platformResourceLoader';
+import { loadStyle } from 'lightning/platformResourceLoader';
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import rte_tbl from '@salesforce/resourceUrl/rte_tbl';
