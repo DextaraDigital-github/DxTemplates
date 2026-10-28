@@ -195,7 +195,6 @@ export default class DxCpqConditioncmp extends LightningElement {
         let child;
         let childToUpdate;
         let childArr = this.lstOfCondition;
-        let lastChildrenArr=[];
         let groupToUpdate=[];
         let rowToUpdate;
         if(isNaN(index)){
@@ -430,8 +429,6 @@ export default class DxCpqConditioncmp extends LightningElement {
     getRuleExpressionForGroup(rowList,index){
         let currentIndex = index;       
         let finalCondition;
-        let finalExpression;
-        let finalStatement;
         let groupExpression;
         let singleCondition;
         for (let i = 0; i < rowList.length; i++) {

@@ -801,7 +801,6 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         if (this.colnumber > 1) {
             this.colnumber = Number(this.colnumber) - 1;
             let colcount = this.colnumber;
-            let lastColIndex = colcount;
             this.tableheaders.pop();
 
             this.tablerows.forEach((row, index) => {
