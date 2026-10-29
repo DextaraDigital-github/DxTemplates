@@ -2772,13 +2772,6 @@ createTranslatedRecords() {
     //   { label: '%', value: '%' },
     // ];
 
-    borderOptions = [
-      { label: 'Left Border', value: 'left' },
-      { label: 'Right Border', value: 'right' },
-      { label: 'Top Border', value: 'top' },
-      { label: 'Bottom Border', value: 'bottom' }
-    ];
-
   handlePropertyChange(event, targetProperties) {
     const { value, dataset, name, type } = event.target;
     const propertyType = dataset.id;

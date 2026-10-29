@@ -101,6 +101,16 @@ describe('c-template-designer-c-m-p', () => {
         return element;
     }
 
+    // B4: `borderOptions` was both a getter and a field, which the LWC engine reports as "Invalid observed
+    // borderOptions field. Found a duplicate accessor" when the class is registered.
+    it('registers its decorators without engine errors', () => {
+        jest.isolateModules(() => {
+            require('c/templateDesignerCMP');
+        });
+
+        expect(console.error).not.toHaveBeenCalled();
+    });
+
     it('loads the sections of the selected template and each lookup once when it connects', async () => {
         await mountLoaded();
 
