@@ -1,6 +1,7 @@
 import { LightningElement, wire, api, track } from 'lwc';
 import getContentVersions from '@salesforce/apex/FooterClass.getContentVersions';
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
+import { copyText } from 'c/dxClipboard';
 
 export default class TemplateFooterType extends LightningElement {
     imageUrls = [];
@@ -101,13 +102,7 @@ export default class TemplateFooterType extends LightningElement {
             //this.mergefieldname = '{!' + this.documenttemplaterecord.DxCPQ__Related_To_Type__c + '.' + mergeField + '}';
             this.mergefieldname = '{!' + this.objectName + '.' + mergeField + '}';         
        
-            let tag = document.createElement('textarea');
-            tag.setAttribute('id', 'input_test_id');
-            tag.value = this.mergefieldname;
-            document.getElementsByTagName('body')[0].appendChild(tag);
-            document.getElementById('input_test_id').select();
-            document.execCommand('copy');
-            document.getElementById('input_test_id').remove();
+            copyText(this.mergefieldname);
             alert(' Copy success ');
             this.selectedMergefields.push(this.mergefieldname);
         }

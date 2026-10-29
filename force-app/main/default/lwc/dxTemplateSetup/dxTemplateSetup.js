@@ -21,6 +21,7 @@ import DOCUMENTTEMPLATEID_FIELD from '@salesforce/schema/Document_Template__c.Id
 import WATERMARKDATA_FIELD from '@salesforce/schema/Document_Template__c.Watermark_Data__c';
 import { getDomainUrl as getSFDomainBaseURL, getClassNames, getFlowNames } from 'c/dxApexCache';
 import { refreshPage } from 'c/dxPageRefresh';
+import { copyText } from 'c/dxClipboard';
 import createLog from '@salesforce/apex/LogHandler.createLog';
 
 export default class DxTemplateSetup extends LightningElement {
@@ -967,13 +968,7 @@ try{
 
     copyJsonData(){
         //navigator.clipboard.writeText(this.exportList)
-        let tempTextAreaField = document.createElement('textarea');
-        tempTextAreaField.style = 'position:fixed;top:-5rem;height:1px;width:10px;';
-        tempTextAreaField.value = this.exportList;
-        document.body.appendChild(tempTextAreaField);
-        tempTextAreaField.select();
-        document.execCommand('copy');
-        tempTextAreaField.remove();
+        copyText(this.exportList);
     }
 
     refreshPageAfterCreate() {

@@ -15,6 +15,7 @@ import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearched
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
 import resetRulesForTemplate from '@salesforce/apex/RelatedObjectsClass.handleTemplateRuleResetCondition';
 import getContentVersions from '@salesforce/apex/FooterClass.getContentVersions';
+import { copyText } from 'c/dxClipboard';
 export default class TemplateContentDetails extends NavigationMixin(LightningElement) {
   @track showSectionCss = false;
   sectioncssval = '';
@@ -571,13 +572,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
     const mergeField = this.template.querySelector('c-dx-lookup-fields-displaycmp').getMergeField();
     if (mergeField != undefined) {
       this.mergefieldname = '{!' + this.selectedObjectName + '.' + mergeField + '}';
-      let tag = document.createElement('textarea');
-      tag.setAttribute('id', 'input_test_id');
-      tag.value = this.mergefieldname;
-      document.getElementsByTagName('body')[0].appendChild(tag);
-      document.getElementById('input_test_id').select();
-      document.execCommand('copy');
-      document.getElementById('input_test_id').remove();
+      copyText(this.mergefieldname);
       this.selectedMergefields.push(this.mergefieldname);
     }
     this.template.querySelector('c-modal').hide();
