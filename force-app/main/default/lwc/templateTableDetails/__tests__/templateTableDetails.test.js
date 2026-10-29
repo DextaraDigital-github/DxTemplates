@@ -325,6 +325,45 @@ describe('c-template-table-details', () => {
         expect(nameInput(element).value).toBe('Prices');
     });
 
+    // D7: Col Swap reorders the columns in the editor and the saved HTML, but the editor rebuilt the table in
+    // the default order on reopen, so the next Save silently undid the swap in the output.
+    it('saves the column order and shows swapped columns in that order when the section is reopened', async () => {
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+            DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+            DxCPQ__Section_Details__c: JSON.stringify({
+                rownumber: 2, colnumber: 3, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                fontsize: '12px', fontfamily: 'Verdana', borderstyle: '', bordercolor: '', newPage: false,
+                columnOrder: ['Header 2', 'Header 1', 'Header 3'],
+                sectionInfo: [
+                    { 'data-id': 'Header 1', Content: '<p>H1</p>' },
+                    { 'data-id': 'Header 2', Content: '<p>H2</p>' },
+                    { 'data-id': 'Header 3', Content: '<p>H3</p>' },
+                    { 'data-id': 'row1col1div', Content: '<p>A1</p>' },
+                    { 'data-id': 'row1col2div', Content: '<p>B1</p>' }
+                ]
+            })
+        });
+        const element = mount({ sectionrecordid: 'a02SECTION' });
+        await flush();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        const headerOrder = [...element.shadowRoot.querySelectorAll('thead lightning-input-rich-text')].map(r => r.dataset.head);
+        const firstRowOrder = [...element.shadowRoot.querySelectorAll('tbody tr:first-child lightning-input-rich-text')].map(r => r.dataset.id);
+        expect(headerOrder).toEqual(['Header 2', 'Header 1', 'Header 3']);
+        expect(firstRowOrder).toEqual(['row1col2', 'row1col1', 'row1col3']);
+        expect([...element.shadowRoot.querySelectorAll('thead lightning-input-rich-text')].map(r => r.value)).toEqual(['<p>H2</p>', '<p>H1</p>', '<p>H3</p>']);
+
+        button(element, 'Update').click();
+        await flush();
+        const saved = JSON.parse(saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails.DxCPQ__Section_Details__c);
+        expect(saved.columnOrder).toEqual(['Header 2', 'Header 1', 'Header 3']);
+    });
+
     // D3: unticking Headers removes the header row from the page and ticking it again builds a new, empty one.
     // The header text is still held in the section data, so it has to be put back.
     it('brings the header text back when Headers is unticked and ticked again', async () => {

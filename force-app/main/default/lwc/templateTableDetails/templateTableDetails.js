@@ -953,6 +953,8 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             obj.borderstyle = this.selectedBorderStyle;
             obj.bordercolor = this.selectedBDRbgcolor;
             obj.newPage = this.newPage;
+            // Display order of the columns after any Col Swap, so the editor can show the same order when it is reopened.
+            obj.columnOrder = this.tableheaders.map(header => header.id);
             //console.log('div content array ' + JSON.stringify(this.divContentArray));
             obj.sectionInfo = this.divContentArray;
 
@@ -1319,6 +1321,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                         this.ruleExists = true;
                     }
                     this.handletablecreate();
+                    this.applyColumnOrder(parsedJson.columnOrder);
                 }
             })
             .then(() => {
@@ -2172,6 +2175,28 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
 
         this.tableheaders = headersCopy;
         this.tablerows = rowsCopy;
+    }
+
+    /**
+    * Method to put the columns of a freshly built table back in the order they were saved in (after a Col Swap).
+    * Each header and body cell keeps its own id, so the saved content still finds its cell. An order that does not
+    * match the table (or none, for sections saved before the order was stored) leaves the default order.
+    */
+
+    applyColumnOrder(columnOrder) {
+        const currentIds = this.tableheaders.map(header => header.id);
+        const isValidOrder = Array.isArray(columnOrder)
+            && columnOrder.length === currentIds.length
+            && currentIds.every(id => columnOrder.includes(id));
+        if (!isValidOrder) {
+            return;
+        }
+        this.tableheaders = columnOrder.map(id => this.tableheaders.find(header => header.id === id));
+        this.tablerows.forEach(row => {
+            const columnById = {};
+            row.columns.forEach(column => { columnById[column.id] = column; });
+            row.columns = columnOrder.map(headerId => columnById['row' + row.rowindex + 'col' + headerId.replace('Header ', '')]);
+        });
     }
 
     /**
