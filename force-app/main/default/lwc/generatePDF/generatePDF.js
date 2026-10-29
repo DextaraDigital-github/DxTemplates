@@ -1,7 +1,7 @@
 import { LightningElement,api } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import pdfObjectdetails from '@salesforce/apex/PdfDisplay.getObjectDetails';
-import getDomainUrl from '@salesforce/apex/PdfDisplay.getDomainUrl';
+import { getDomainUrl } from 'c/dxApexCache';
 import createLog from '@salesforce/apex/LogHandler.createLog';
 export default class GeneratePDF extends  NavigationMixin(LightningElement)  {
 

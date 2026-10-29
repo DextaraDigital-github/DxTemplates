@@ -9,7 +9,7 @@ import createLog from '@salesforce/apex/LogHandler.createLog';
 import getSObjectListFiltering from '@salesforce/apex/RelatedObjectsClass.getSObjectListFiltering';
 import createRuleCondition from '@salesforce/apex/RelatedObjectsClass.createRuleCondition';
 import getConditions from '@salesforce/apex/RelatedObjectsClass.getExistingConditions';
-import getDomainUrl from '@salesforce/apex/PdfDisplay.getDomainUrl';
+import { getDomainUrl } from 'c/dxApexCache';
 import deleteContentVersions from '@salesforce/apex/ScreenshotController.deleteContentVersions'; 
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
