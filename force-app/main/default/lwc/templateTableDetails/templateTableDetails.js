@@ -166,7 +166,6 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     @track savedRecordID;
     @api recordidvalueprop;
     selectedTableRow;
-    disableButton = false;
 
     @track Recorddetailsnew = {
         Name: '',
@@ -419,8 +418,8 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                     if (this.imageUrls.length > 0) {
                         this.imagesfound = true;
                     }
-                } else if (error) {
-                    console.log('error in Content Versions Fetch' + JSON.stringify(error));
+                } else {
+                    console.log('No content versions were returned');
                 }
             })
             .catch(error => {
