@@ -241,7 +241,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
     this.relatedtoTypeObjName = doc.DxCPQ__Related_To_Type__c;
     this.relatedtoTypeObjChild = this.relatedtoTypeObjName;
     this.isconnectedcalledonLoad = false;
-    this.connectedCallback();
+    this.refreshSections();
   }
 
   /**
@@ -281,7 +281,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
         this.rowCount += 1;
         this.optionsList.push({ Id: selectedOption + 'NotSaved', Type: selectedOption, rowCount: this.rowCount });
         this.selectedSectionRecordID = selectedOption + 'NotSaved';
-        this.connectedCallback();
+        this.refreshSections();
       } else {
         this.template.querySelector("c-template-content-details").loadsectionsectionvaluesforedit(sectionid);
         this.showPreview = true;
@@ -300,7 +300,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
         this.rowCount += 1;
         this.optionsList.push({ Id: selectedOption + 'NotSaved', Type: selectedOption, rowCount: this.rowCount });
         this.selectedSectionRecordID = selectedOption + 'NotSaved';
-        this.connectedCallback();
+        this.refreshSections();
       } else {
         this.template.querySelector("c-template-content-details").loadsectionsectionvaluesforedit(sectionid);
         this.showPreview = true;
@@ -320,7 +320,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
         this.rowCount += 1;
         this.optionsList.push({ Id: selectedOption + 'NotSaved', Type: selectedOption, rowCount: this.rowCount });
         this.selectedSectionRecordID = selectedOption + 'NotSaved';
-        this.connectedCallback();
+        this.refreshSections();
       } else {
         this.template.querySelector("c-template-related-objects").loadsectionsectionvaluesforedit(sectionid);
         this.showPreview = true;
@@ -341,7 +341,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
         this.rowCount += 1;
         this.optionsList.push({ Id: selectedOption + 'NotSaved', Type: selectedOption, rowCount: this.rowCount });
         this.selectedSectionRecordID = selectedOption + 'NotSaved';
-        this.connectedCallback();
+        this.refreshSections();
       } else {
         this.template.querySelector("c-template-table-details").loadsectionsectionvaluesforedit(sectionid);
         this.showPreview = true;
@@ -524,7 +524,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
       }
     });
     this.selectedSectionRecordID = secrecordId;
-    this.connectedCallback();
+    this.refreshSections();
     if (this.showPreview == false) { this.showPreview = true; }
     if (this.isActivateTemplateDisabled == true) { this.isActivateTemplateDisabled = false; }
   }
@@ -550,7 +550,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
  */
   handledeletesectiondata() {
     this.isconnectedcalledondeletion = true;
-    this.connectedCallback();
+    this.refreshSections();
   }
 
   /**
@@ -732,7 +732,15 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
   @track isTemplateSectionsFetched = false; 
 
   connectedCallback() {
-    this.isActivateTemplateDisabled = true;
+    this.loadLookups();
+    this.refreshSections();
+  }
+
+  /**
+   * Loads the lookup data that does not change while the designer is open (domain URL, user languages,
+   * PDF links, Apex class and Flow names). The calls are cached by c/dxApexCache.
+   */
+  loadLookups() {
     getSFDomainBaseURL()
       .then(result => {
           this.baseURL = result;
@@ -752,7 +760,6 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
         let tempError = error.toString();
         createLog({ recordId: '', className: 'TemplateContentDetails LWC Component - connectedCallback()', exceptionMessage: errorMessage, logData: tempError, logType: 'Exception' });
       });
-      console.log('Languages----',this.languages);
     //get PDFlinks from custom metdata
     getPDFLinks()
       .then(result => {
@@ -761,6 +768,50 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
       .catch(error => {
         console.log('error while retrieving the PDF Links --- > ', error);
       })
+    /**
+      * @description this getClassNames function is used to fetch
+      * all interface implemented classess
+      * Author : Reethika
+      */
+    getClassNames()
+      .then(result => {
+        if (result != null) {
+          let options = [];
+          for (var key in result) {
+            options.push({ label: result[key], value: key });
+          }
+          this.classTypeOptions = options;
+        }
+      })
+      .catch(error => {
+        console.log('error', error);
+      })
+
+    /* @description this getFlowNames function is used to fetch
+    * all autolaunched flows.
+    * Author : Reethika
+    */
+    getFlowNames()
+      .then(result => {
+        if (result != null) {
+          let options = [];
+          for (var key in result) {
+            options.push({ label: result[key], value: key });
+          }
+          this.flowTypeOptions = options;
+        }
+      })
+      .catch(error => {
+        console.log('error', error);
+      })
+  }
+
+  /**
+   * Reloads the template sections (from the server, or from the in-memory list when no reload is needed).
+   * Call this instead of connectedCallback() to refresh the designer.
+   */
+  refreshSections() {
+    this.isActivateTemplateDisabled = true;
     this.relatedtoTypeObjChild = this.relatedtoTypeObjName;
     this.documenttemplaterecordid = this.recordId;
     this.doctemplatedetails.Id = this.recordId;
@@ -930,43 +981,6 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
       }, 2000)
 
     }
-
-    /**
-      * @description this getClassNames function is used to fetch
-      * all interface implemented classess
-      * Author : Reethika
-      */
-    getClassNames()
-      .then(result => {
-        if (result != null) {
-          let options = [];
-          for (var key in result) {
-            options.push({ label: result[key], value: key });
-          }
-          this.classTypeOptions = options;
-        }
-      })
-      .catch(error => {
-        console.log('error', error);
-      })
-
-    /* @description this getFlowNames function is used to fetch
-    * all autolaunched flows.
-    * Author : Reethika
-    */
-    getFlowNames()
-      .then(result => {
-        if (result != null) {
-          let options = [];
-          for (var key in result) {
-            options.push({ label: result[key], value: key });
-          }
-          this.flowTypeOptions = options;
-        }
-      })
-      .catch(error => {
-        console.log('error', error);
-      })
   }
 
   /**
