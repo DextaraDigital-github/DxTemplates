@@ -20,6 +20,7 @@ import { updateRecord } from 'lightning/uiRecordApi';
 import DOCUMENTTEMPLATEID_FIELD from '@salesforce/schema/Document_Template__c.Id';
 import WATERMARKDATA_FIELD from '@salesforce/schema/Document_Template__c.Watermark_Data__c';
 import { getDomainUrl as getSFDomainBaseURL, getClassNames, getFlowNames } from 'c/dxApexCache';
+import { refreshPage } from 'c/dxPageRefresh';
 import createLog from '@salesforce/apex/LogHandler.createLog';
 
 export default class DxTemplateSetup extends LightningElement {
@@ -976,9 +977,7 @@ try{
     }
 
     refreshPageAfterCreate() {
-        setTimeout(() => {
-            eval("$A.get('e.force:refreshView').fire();");
-        }, 100);
+        refreshPage();
     }
 
     handleExportTemplateList(event){

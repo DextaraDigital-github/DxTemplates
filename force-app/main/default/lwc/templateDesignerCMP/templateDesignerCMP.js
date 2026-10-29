@@ -15,6 +15,7 @@ import { updateRecord } from 'lightning/uiRecordApi';
 import DOCUMENTTEMPLATEID_FIELD from '@salesforce/schema/Document_Template__c.Id';
 import WATERMARKDATA_FIELD from '@salesforce/schema/Document_Template__c.Watermark_Data__c';
 import { getDomainUrl as getSFDomainBaseURL, getClassNames, getFlowNames, getPDFLinks, getAllUserLanguages } from 'c/dxApexCache';
+import { refreshPage } from 'c/dxPageRefresh';
 import getDocumentTemplateData from '@salesforce/apex/DisplayPDFController.getDocumentTemplateData';
 import createLog from '@salesforce/apex/LogHandler.createLog';
 import updateTemplateDetails from '@salesforce/apex/SaveDocumentTemplate.updateTemplateDetails';
@@ -1183,9 +1184,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
   * Method to refresh the selected template
   */
   handleRefreshTemplateHandler() {
-    setTimeout(() => {
-      eval("$A.get('e.force:refreshView').fire();");
-    }, 100);
+    refreshPage();
   }
 
   /**
