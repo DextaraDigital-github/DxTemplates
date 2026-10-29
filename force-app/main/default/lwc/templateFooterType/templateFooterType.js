@@ -66,12 +66,6 @@ export default class TemplateFooterType extends LightningElement {
         this.dispatchEvent(firecustomevent);
     }
 
-    handleRichTextAreaSave() {
-        var rtdetails = { value: this.richtextVal, indexvar: this.indexvar };
-        var firecustomevent = new CustomEvent('saverichtextheader', { detail: rtdetails });
-        this.dispatchEvent(firecustomevent);
-    }
-
     handleAddImage() {
         this.template.querySelector('c-modal').show();
         this.isModalOpen = true;

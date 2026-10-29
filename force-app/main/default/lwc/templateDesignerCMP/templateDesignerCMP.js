@@ -1014,11 +1014,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
     if (this.disableEditing == false) {
       this.template.querySelector("c-template-content-details").handleObjectNameSelection(this.relatedtoTypeObjName);
       this.template.querySelector("c-template-related-objects").handleObjectNameSelection(this.relatedtoTypeObjName);
-      this.template.querySelector('c-template-content-details').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-      this.template.querySelector('c-template-table-details').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-      this.template.querySelector('c-template-related-objects').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-      this.template.querySelector('c-template-header').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-      this.template.querySelector('c-template-footer').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
+      this.applyActivationToSectionEditors(isActive);
     }
     activateTemplate({ templateId: this.documenttemplaterecordid, parentId: this.doctemplatedetails.DxCPQ__Parent_Template__c, isActive: isActive }).then(result => {
       if (result != null) {
@@ -1034,12 +1030,19 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
   * Method to disable editing for the all sections under the selected template when the template is made active
   */
   disableEditingHandler(isActive) {
-    this.template.querySelector('c-template-content-details').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-    this.template.querySelector('c-template-table-details').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-    this.template.querySelector('c-template-related-objects').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-    this.template.querySelector('c-template-header').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
-    this.template.querySelector('c-template-footer').handleActivateTemplate(isActive, this.relatedtoTypeObjName);
+    this.applyActivationToSectionEditors(isActive);
     this.readonlyVal = isActive ? true : false;
+  }
+
+  /**
+  * Tells every section editor that the template was activated or deactivated. An editor that is not
+  * rendered yet is skipped, so one missing child cannot stop the rest of the calling method.
+  */
+  applyActivationToSectionEditors(isActive) {
+    ['c-template-content-details', 'c-template-table-details', 'c-template-related-objects', 'c-template-header', 'c-template-footer']
+      .forEach(selector => {
+        this.template.querySelector(selector)?.handleActivateTemplate(isActive, this.relatedtoTypeObjName);
+      });
   }
 
   /**
