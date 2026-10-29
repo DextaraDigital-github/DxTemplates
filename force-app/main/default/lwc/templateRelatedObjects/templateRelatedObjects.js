@@ -1258,7 +1258,8 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                   })
           }
       }
-      this.template.querySelector('c-template-designer-cmp').showPreview = true;
+      // The designer (the parent, not a child of this template) shows its Preview button itself when it receives
+      // the savesectiondata event, so nothing is needed here.
   }
 
   /*
