@@ -324,4 +324,48 @@ describe('c-template-table-details', () => {
         expect(element.shadowRoot.querySelectorAll('thead th')).toHaveLength(3);
         expect(nameInput(element).value).toBe('Prices');
     });
+
+    // D3: unticking Headers removes the header row from the page and ticking it again builds a new, empty one.
+    // The header text is still held in the section data, so it has to be put back.
+    it('brings the header text back when Headers is unticked and ticked again', async () => {
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+            DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+            DxCPQ__Section_Details__c: JSON.stringify({
+                rownumber: 2, colnumber: 3, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                fontsize: '12px', fontfamily: 'Verdana', borderstyle: '', bordercolor: '', newPage: false,
+                sectionInfo: [
+                    { 'data-id': 'Header 1', Content: '<p>H1</p>' },
+                    { 'data-id': 'Header 2', Content: '<p>H2</p>' },
+                    { 'data-id': 'Header 3', Content: '<p>H3</p>' }
+                ]
+            })
+        });
+        const element = mount({ sectionrecordid: 'a02SECTION' });
+        await flush();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        const headersBox = () => [...element.shadowRoot.querySelectorAll('lightning-input')].find(i => i.title === 'Include Header');
+        const headerValues = () => [...element.shadowRoot.querySelectorAll('thead lightning-input-rich-text')].map(r => r.value);
+        expect(headerValues()).toEqual(['<p>H1</p>', '<p>H2</p>', '<p>H3</p>']);
+
+        headersBox().checked = false;
+        headersBox().click();
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+        expect(element.shadowRoot.querySelectorAll('thead')).toHaveLength(0);
+
+        headersBox().checked = true;
+        headersBox().click();
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        expect(headerValues()).toEqual(['<p>H1</p>', '<p>H2</p>', '<p>H3</p>']);
+    });
 });

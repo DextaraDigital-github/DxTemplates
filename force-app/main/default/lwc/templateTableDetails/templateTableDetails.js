@@ -1664,7 +1664,45 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         this.isHeaderSelectedCheck = event.target.checked;
         let parentData = this;
         this.unsavedChanges();
-        setTimeout(function () { parentData.handleBorderStyling(); }, 100);
+        setTimeout(function () {
+            if (parentData.isHeaderSelectedCheck) {
+                parentData.restoreHeaderCells();
+            }
+            parentData.handleBorderStyling();
+        }, 100);
+    }
+
+    /**
+    * The header row is removed from the page when Headers is unticked and built again, empty, when it is ticked.
+    * The text, background and merge of each header cell are still held in divContentArray, so put them back.
+    */
+
+    restoreHeaderCells() {
+        this.template.querySelectorAll('lightning-input-rich-text[data-head]').forEach(element => {
+            const saved = this.divContentArray.find(item => item['data-id'] === element.dataset.head);
+            if (!saved) {
+                return;
+            }
+            const headerCell = element.closest('th');
+            if (saved['Content'] != null) {
+                element.value = saved['Content'];
+                const hiddenDiv = headerCell && headerCell.querySelector('div.hiddencells');
+                if (hiddenDiv) {
+                    hiddenDiv.innerHTML = saved['Content'];
+                }
+            }
+            if (headerCell && saved['backgroundColor']) {
+                headerCell.style.backgroundColor = saved['backgroundColor'];
+            }
+            if (headerCell && saved['cellColspan'] > 1) {
+                headerCell.setAttribute('colspan', saved['cellColspan']);
+                let sibling = headerCell.nextElementSibling;
+                for (let i = 1; i < saved['cellColspan'] && sibling; i++) {
+                    sibling.style.display = 'none';
+                    sibling = sibling.nextElementSibling;
+                }
+            }
+        });
     }
 
     /**
