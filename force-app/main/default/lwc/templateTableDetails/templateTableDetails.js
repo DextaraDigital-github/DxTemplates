@@ -755,8 +755,9 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                 });
 
             }
-            this.rowcount = this.rownumber;
-            for (let i = 1; i <= this.rowcount; i++) {
+            // Do not assign to this.rowcount: it is the @api position of this section, which the save stores as the
+            // section's sequence. The table's own row count is this.rownumber.
+            for (let i = 1; i <= this.rownumber; i++) {
                 let myObj = new Object();
                 myObj.rownumber = 'row' + i;
                 myObj.rowindex = i;
