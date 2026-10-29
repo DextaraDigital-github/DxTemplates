@@ -121,6 +121,15 @@ describe('c-template-designer-c-m-p', () => {
         });
     });
 
+    // Smoke test: mounting and loading the sections raises no console error. It does NOT prove that the dead
+    // attributes (recordidvalueprop, recordidtoedit, wherecondition) are gone: the same test passes on the old
+    // template, because the engine does not log for them here. That removal is verified by reading the template.
+    it('mounts and loads the sections without console errors', async () => {
+        await mountLoaded();
+
+        expect(console.error).not.toHaveBeenCalled();
+    });
+
     it('opens the header section for editing once the sections have loaded', async () => {
         await mountLoaded();
 

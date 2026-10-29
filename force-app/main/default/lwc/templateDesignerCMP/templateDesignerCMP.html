@@ -65,44 +65,44 @@
 						<div class="slds-col slds-size_12-of-12">
 							<!-- <template if:true={isTemplateSectionsFetched}> -->
 							<c-template-header showheaderdetails={showheaderdetails}
-								selected-object-name={relatedtoTypeObjChild} recordidvalueprop={recordIDValueprop}
+								selected-object-name={relatedtoTypeObjChild}
 								rowcount={header.rowCount} sectiontype={header.Type}
 								ondeletesectiondata={handledeletesectiondata} onsavesectiondata={handlesavedheaderdata}
-								recordidtoedit={recordidtoedit} sectionrecordid={header.Id}
+								sectionrecordid={header.Id}
 								documenttemplaterecord={doctemplatedetails} pdf-links ={pdfLinksData} ondatasaved={handleDataSaved} onfirstheader = {handleFirstUniqueHeader}>
 							</c-template-header>
 
 							<c-template-content-details showdetails={showcontextdetails}
-								selected-object-name={relatedtoTypeObjChild} recordidvalueprop={recordIDValueprop} wherecondition = {whereCondition}
+								selected-object-name={relatedtoTypeObjChild}
 								rowcount={rowCount} sectiontype={SectionTypename} ondatasaved={handleDataSaved}
 								onsavesectiondata={handlesavedsectiondata} ondeletesectiondata={handledeletesectiondata}
-								showclausescreen={showclausescreen} recordidtoedit={recordidtoedit}
+								showclausescreen={showclausescreen}
 								sectionrecordid={selectedSectionRecordID} documenttemplaterecord={doctemplatedetails} pdf-links ={pdfLinksData}> </c-template-content-details>
 
 
 							<c-template-table-details showtabledetails={showtabledetails}
-								selected-object-name={relatedtoTypeObjChild} recordidvalueprop={recordIDValueprop}
+								selected-object-name={relatedtoTypeObjChild}
 								rowcount={rowCount} sectiontype={SectionTypename}
 								onsavesectiondata={handlesavedsectiondata} ondeletesectiondata={handledeletesectiondata}
-								recordidtoedit={recordidtoedit} sectionrecordid={selectedSectionRecordID}
+								sectionrecordid={selectedSectionRecordID}
 								documenttemplaterecordid={doctemplatedetails.Id}
 								documenttemplaterecord={doctemplatedetails} ondatasaved={handleDataSaved}>
 							</c-template-table-details>
 
 							<c-template-related-objects showrelatedobjectdetails={showrelatedobjectdetails}
-								selected-object-name={relatedtoTypeObjChild} recordidvalueprop={recordIDValueprop}
+								selected-object-name={relatedtoTypeObjChild}
 								rowcount={rowCount} sectiontype={SectionTypename}
 								onsavesectiondata={handlesavedsectiondata} ondeletesectiondata={handledeletesectiondata}
-								recordidtoedit={recordidtoedit} sectionrecordid={selectedSectionRecordID}
+								sectionrecordid={selectedSectionRecordID}
 								documenttemplaterecordid={doctemplatedetails.Id} ondatasaved={handleDataSaved}
 								documenttemplaterecord={doctemplatedetails} pdf-links ={pdfLinksData}>
 							</c-template-related-objects>
 
 							<c-template-footer showfooterdetails={showfooterdetails}
-								selected-object-name={relatedtoTypeObjChild} recordidvalueprop={recordIDValueprop}
+								selected-object-name={relatedtoTypeObjChild}
 								rowcount={footer.rowCount} sectiontype={footer.Type} ondatasaved={handleDataSaved}
 								ondeletesectiondata={handledeletesectiondata} onsavesectiondata={handlesavedfooterdata}
-								recordidtoedit={recordidtoedit} sectionrecordid={footer.Id}
+								sectionrecordid={footer.Id}
 								documenttemplaterecord={doctemplatedetails} pdf-links ={pdfLinksData}>
 							</c-template-footer>
 							<!-- </template> -->
