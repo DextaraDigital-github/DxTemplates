@@ -47,9 +47,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
   imageUrls = [];
   mainimageUrls = [];
   isLoaded = false;
-  showimages = false;
   isModalOpen = false;
-  imagesfound = false;
   showMergeFields = false;
   newpage = false;
   @api pdfLinks;
@@ -114,7 +112,6 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
         'image'
     ];
  //filter
-  @track ruleCondition;
   @track listOfExistingConditions = [];
   @track fieldWrapper;
   ruleExpression;

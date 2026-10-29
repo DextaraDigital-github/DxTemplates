@@ -90,11 +90,9 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
   visibilityRuleConditions = [];
   mapOfRC;
   visibilityLstofactualConditions;
-  conditionsArr;
   lstofactualConditions;
   conditionExists = false;
   allConditions = [];
-  listOfExistingConditions = [];
   ruleIdCreated = '';
   ruleExists = false;
   visibilityRuleExists = false;

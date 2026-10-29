@@ -76,7 +76,6 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     @track thickOutsideBordersIcon = '';
     @track thickOutsideAllBordersIcon = '';
 
-    draggedColumnIndex;
     resizing;
     selectedThValue;
     initialResizeX;
