@@ -216,6 +216,55 @@ describe('c-template-related-objects', () => {
         expect(saved.subTotal).toEqual(['Amount']);
     });
 
+    // R-D7: same as R-D6 for a Sub Total field taken from a parent object (path "Account.NumberOfEmployees"):
+    // its label was added once per field of the parent object and its value was never restored for the save.
+    it('keeps a parent-object Sub Total field when a saved section is opened and saved again', async () => {
+        getRelatedObjects.mockResolvedValue({ Opportunity: 'AccountId' });
+        getFields.mockImplementation(({ selectedObject }) => Promise.resolve(selectedObject === 'Account'
+            ? [
+                { name: 'Account Name', apiName: 'Name', dataType: 'STRING' },
+                { name: 'Employees', apiName: 'NumberOfEmployees', dataType: 'INTEGER' },
+                { name: 'Annual Revenue', apiName: 'AnnualRevenue', dataType: 'CURRENCY' }
+            ]
+            : [
+                { name: 'Name', apiName: 'Name', dataType: 'STRING' },
+                { name: 'Account ID', apiName: 'AccountId', dataType: 'REFERENCE', relationshipName: 'Account', sObjectName: 'Account' }
+            ]));
+        getGroupingValues.mockResolvedValue({});
+        getSObjectListFiltering.mockResolvedValue([]);
+        getExistingConditions.mockResolvedValue([]);
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'RO Parent', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 4, DxCPQ__Type__c: 'Related Objects',
+            DxCPQ__Section_Visibility_Rule__c: null,
+            DxCPQ__Section_Content__c: JSON.stringify({
+                whereClause: '()', mainChildObject: 'Opportunity', childLookupfieldAPIname: 'AccountId', SerialNumber: false,
+                subTotal: ['Account.NumberOfEmployees'], newPage: false, displayChart: false, chartLabel: 'Chart', chartNewPage: true,
+                tablelistValues: ['Name', 'Account.NumberOfEmployees'], tablelistLabels: ['Name', 'Account.Employees'], grouping: '',
+                dateFormat: '564/', timeFormat: '124', numberFormat: '2', currencyFormat: '1',
+                style: {
+                    category: { fontcolor: '', backgroundColor: '', fontfamily: 'Verdana', fontsize: '10px' },
+                    header: { fontcolor: '', backgroundColor: '', fontfamily: 'Verdana', fontsize: '10px' }
+                },
+                groupingCatVals: []
+            })
+        });
+        saveDocumentTemplateSectionDetails.mockResolvedValue({ Id: 'a02SECTION', Name: 'RO Parent' });
+        const element = mount({ sectionrecordid: 'a02SECTION', selectedObjectName: 'Account' });
+        await flush();
+
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.advanceTimersByTime(1100);
+        await flush();
+        button(element, 'Save').click();
+        await flush();
+
+        expect(saveDocumentTemplateSectionDetails).toHaveBeenCalledTimes(1);
+        const saved = JSON.parse(saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails.DxCPQ__Section_Content__c);
+        expect(saved.tablelistValues).toEqual(['Name', 'Account.NumberOfEmployees']);
+        expect(saved.subTotal).toEqual(['Account.NumberOfEmployees']);
+    });
+
     // B7: handlesectionsave ended with `this.template.querySelector('c-template-designer-cmp').showPreview = true`.
     // That element does not exist in this template (the designer's tag is c-template-designer-c-m-p and it is the
     // parent, not a child), so every save, including this validation failure, ended in a TypeError.

@@ -835,9 +835,12 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                                                               });
                                                               this.showCalculatorFields = true;
                                                           }
-                                                      }
-                                                      if (parsedJson.subTotal.includes(parsedJson.tablelistValues[j])) {
-                                                          this.allNumericalFields.push(referenceObject[0].name.substring(0, referenceObject[0].name.length - 1) + '.' + key.name);
+                                                          // Once per matched field, label and value together (R-D6, R-D7); this used to run for every
+                                                          // field of the parent object and never restored the value.
+                                                          if (parsedJson.subTotal.includes(parsedJson.tablelistValues[j])) {
+                                                              this.allNumericalFields.push(referenceObject[0].name.substring(0, referenceObject[0].name.length - 1) + '.' + key.name);
+                                                              this.allnumValues.push(parsedJson.tablelistValues[j]);
+                                                          }
                                                       }
                                                   }
                                               })
