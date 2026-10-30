@@ -36,9 +36,9 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | # | Candidate |
 |---|---|
 | R-D2 | RETRACTED. `dateFormat` `564/` is just the internal code of the "mm/dd/yyyy" option (the dropdown values are codes: `654/*` is dd/MMM/yyyy). Not a defect. |
-| R-D3 | The PDF starts with an empty page when the first section has New Page ticked (the page break comes before any content). In this run the first section was the Context section with New Page. Decide whether New Page on the first section should be ignored. |
+| R-D3 | RETRACTED (owner, 2026-10-30): a New Page section must start on a new page, so an empty page 1 when the first section has New Page ticked is the intended behaviour. |
 | R-D4 | In the Preview and the PDF the groups (and the chart bars) come out in the REVERSE of the picklist (stage) order: Closed Won, Negotiation/Review, Proposal/Price Quote, Needs Analysis, Qualification, Prospecting, whereas the editor sample shows Prospecting first. Looks unintended; decide before changing (a user probably expects the stage order). |
-| R-D5 | The default currency format "x.y" rounds money to one decimal (R12). Changing the default to two decimals would only affect new sections; needs your decision. |
+| R-D5 | FIXED (owner agreed, 2026-10-30): the default currency format of a new section is now "x.yz" (two decimals) instead of "x.y" (R12); both the field default and the reset in `templateRelatedObjects.js`. Saved sections keep their own setting. No Jest test: the control only renders after an object and fields are chosen; checked in the browser instead. |
 
 | R13 | Move up and move down in the chosen fields list; Add and Remove | Pass. Name moved above Stage and back; Description added at the end and removed again. A removed field returns to the top of the available list (not to its old place). |
 | R14 | Serial-Number, Currency format x.yz, font Courier, then Save | Pass. Saved `SerialNumber` true, `currencyFormat` "2", `fontfamily` `courier, monospace`, field order Stage, Name, Amount. The editor preview switched to Courier. |

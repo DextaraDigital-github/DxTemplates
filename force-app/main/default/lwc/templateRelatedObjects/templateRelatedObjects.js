@@ -74,7 +74,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
   dateFormatvalue = '564/';
   timeFormatvalue = '124';
   numFormatvalue = '2';
-  curFormatvalue = '1';
+  curFormatvalue = '2';
   @track renderedData = false;
 
   // Filtering params
@@ -612,7 +612,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
       this.dateFormatvalue = '564/';
       this.timeFormatvalue = '124';
       this.numFormatvalue = '2';
-      this.curFormatvalue = '1';
+      this.curFormatvalue = '2';
       this.fontfamily = DEFAULT_FONT_FAMILY;
       this.fontsize = '10px';
       this.SerialNumber = false;
