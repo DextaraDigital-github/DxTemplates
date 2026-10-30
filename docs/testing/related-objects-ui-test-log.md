@@ -27,7 +27,7 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 
 | # | Defect | Status |
 |---|---|---|
-| R-D1 | The saved font family was a lone `Verdana` (default, even when the dropdown showed Times New Roman) and the Courier option was lowercase `courier`; the PDF prints both in Times (same as Table D11 and Context C-D1). Now the default is `Verdana, sans-serif`, the Courier option is `courier, monospace`, a Verdana option was added to the dropdown, and old saved values are upgraded when a section is opened. The logic is in a new shared helper `dxPdfFonts` (10 Jest tests, failed first because the module did not exist). | FIXED in code and deployed; the saved JSON and the PDF still to re-check in the browser. |
+| R-D1 | The saved font family was a lone `Verdana` (default, even when the dropdown showed Times New Roman) and the Courier option was lowercase `courier`; the PDF prints both in Times (same as Table D11 and Context C-D1). Now the default is `Verdana, sans-serif`, the Courier option is `courier, monospace`, a Verdana option was added to the dropdown, and old saved values are upgraded when a section is opened. The logic is in a new shared helper `dxPdfFonts` (10 Jest tests, failed first because the module did not exist). | FIXED and UI-verified: after clearing the page caches, reopening "RO Opps" and pressing Save stored `Verdana, sans-serif` for both the header and the category style (it was `Verdana`). The Related Objects PDF itself has not been regenerated since; the stack is the one measured to give Helvetica in the Table PDF. |
 
 ## Defect candidates
 
