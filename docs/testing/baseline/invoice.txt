@@ -1,0 +1,23 @@
+INVOICE
+
+Billed To          Date Issued  Invoice Number                  Amount Due  Due Date
+
+Description        Rate         QTY                                         Amount
+Services           $55.00       10                                          $550.00
+Consulting         $75.00       15                                          $1,125.00
+Materials          $123.93      1                                           $123.93
+SubTotal                        $1,798.39
+Discount                        $179.84
+Tax                             $80.93
+Total                           $1,699.48
+Deposit Requested               $169.95
+Deposit Due                     $169.95
+
+Notes
+
+Thank you for the business !
+
+Terms
+
+Please pay within 30 days using the link in your invoice email
+

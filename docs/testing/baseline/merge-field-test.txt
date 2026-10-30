@@ -1,0 +1,14 @@
+Merge test
+Name: Datamatics
+Phone: (555) 010-2000
+Website: https://www.datamatics.example
+Industry: Technology
+Type: Customer - Direct
+Employees: 4200
+Annual revenue: 125000000
+Billing city: Pune
+Billing country: India
+Owner: User User
+Blank field (Site): []
+Description: Baseline test account used for PDF regression checks.
+
