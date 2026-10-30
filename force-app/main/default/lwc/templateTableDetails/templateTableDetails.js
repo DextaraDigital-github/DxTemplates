@@ -838,6 +838,10 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     * Method to handle font size , font colors, background colors of the table cells.
     */
     newfontsize() {
+        const table = this.template.querySelector('.mytable');
+        if (table && this.fontfamily) {
+            table.style.fontFamily = this.fontfamily;
+        }
         let thElements = this.template.querySelectorAll('th');
         let tdElements = this.template.querySelectorAll('td');
 

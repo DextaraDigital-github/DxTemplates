@@ -406,6 +406,33 @@ describe('c-template-table-details', () => {
         expect(colourOf(bodyCells)[1]).toBe('rgb(255, 255, 255)');
     });
 
+    // D10: the font family was applied to the table only when the dropdown was changed, so a reopened section
+    // showed its saved font in the dropdown but the table (and the next Save) went back to Verdana.
+    it('shows the saved font family on the table when the section is reopened', async () => {
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+            DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+            DxCPQ__Section_Details__c: JSON.stringify({
+                rownumber: 2, colnumber: 3, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                fontsize: '12px', fontfamily: 'courier', borderstyle: '', bordercolor: '', newPage: false, sectionInfo: []
+            })
+        });
+        const element = mount({ sectionrecordid: 'a02SECTION' });
+        await flush();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        expect(element.shadowRoot.querySelector('.mytable').style.fontFamily).toBe('courier');
+
+        button(element, 'Update').click();
+        await flush();
+        const saved = saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails;
+        expect(saved.DxCPQ__Section_Content__c).toContain('font-family: courier');
+    });
+
     // D3: unticking Headers removes the header row from the page and ticking it again builds a new, empty one.
     // The header text is still held in the section data, so it has to be put back.
     it('brings the header text back when Headers is unticked and ticked again', async () => {
