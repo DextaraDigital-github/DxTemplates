@@ -406,6 +406,40 @@ describe('c-template-table-details', () => {
         expect(colourOf(bodyCells)[1]).toBe('rgb(255, 255, 255)');
     });
 
+    // D9: saved cells were matched to editor cells by "starts with", so with 10 columns the content of column 10
+    // ("row1col10", "Header 10") also landed in column 1 ("row1col1", "Header 1").
+    it('puts the content of column 10 in column 10 only, not also in column 1', async () => {
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'Wide', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+            DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+            DxCPQ__Section_Details__c: JSON.stringify({
+                rownumber: 1, colnumber: 10, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                fontsize: '12px', fontfamily: 'serif', borderstyle: '', bordercolor: '', newPage: false,
+                sectionInfo: [
+                    { 'data-id': 'Header 1', Content: '<p>H1</p>' },
+                    { 'data-id': 'Header 10', Content: '<p>H10</p>' },
+                    { 'data-id': 'row1col1div', Content: '<p>A1</p>' },
+                    { 'data-id': 'row1col10div', Content: '<p>A10</p>' }
+                ]
+            })
+        });
+        const element = mount({ sectionrecordid: 'a02SECTION' });
+        await flush();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        const headers = [...element.shadowRoot.querySelectorAll('thead lightning-input-rich-text')].map(r => r.value);
+        const body = [...element.shadowRoot.querySelectorAll('tbody tr:first-child lightning-input-rich-text')].map(r => r.value);
+        expect(headers).toHaveLength(10);
+        expect(headers[0]).toBe('<p>H1</p>');
+        expect(headers[9]).toBe('<p>H10</p>');
+        expect(body[0]).toBe('<p>A1</p>');
+        expect(body[9]).toBe('<p>A10</p>');
+    });
+
     // D10: the font family was applied to the table only when the dropdown was changed, so a reopened section
     // showed its saved font in the dropdown but the table (and the next Save) went back to Verdana.
     it('shows the saved font family on the table when the section is reopened', async () => {

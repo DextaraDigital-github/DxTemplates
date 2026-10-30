@@ -1380,7 +1380,10 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
 
                     if (parsedContent != null && parsedContent != undefined) {
                         parsedContent.forEach(item => {
-                            if (item['data-id'].startsWith(element.dataset.id) || item['data-id'].startsWith(element.dataset.head)) {
+                            // Saved ids are "Header N" for headers and "rowRcolCdiv" for body cells; match them exactly,
+                            // a prefix match let "row1col10" and "Header 10" fill column 1 as well.
+                            const savedId = item['data-id'];
+                            if (savedId === element.dataset.head || savedId === element.dataset.id + 'div' || savedId === element.dataset.id) {
 
                                 if (item['Content'] != null && item['Content'] != undefined) {
                                     element.value = item['Content'];
