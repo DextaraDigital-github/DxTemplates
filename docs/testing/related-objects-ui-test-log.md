@@ -15,6 +15,10 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | R5 | Category (grouping): stagename | Pass. The preview groups the rows under the 10 Opportunity stages. |
 | R6 | Save | Pass. Toast "Section RO Opps was Saved"; record created at sequence 4, type Related Objects, JSON saved: `mainChildObject` Opportunity, `childLookupfieldAPIname` AccountId, `subTotal` [Amount], `displayChart` true, `selGraphvalue` Amount, `chartNewPage` true, `grouping` stagename, `tablelistValues` [StageName, Name, Amount], all stage values. |
 
+| R7 | Preview of the template for account Datamatics, with the single seeded Opportunity | Pass. Group heading PROSPECTING, one row (Prospecting, Acme Renewal 2026, 12345.0), Sub Total and Grand Total rows, and a chart with one full-height bar (100%). |
+| R8 | Preview with 10 Opportunities in 7 stages (seed: `docs/tools/org-seed/seed_opportunities.apex`) | Pass. One group per stage, each with a Sub Total, then a Grand Total. Chart has 7 bars with correct values and shares: Closed Won 250000 is 52% of 478,947; Prospecting 16046 (3 records) is 3%. |
+| R9 | Number formatting in the preview | As configured: currency format "x.y" shows 7800.1 and 250000.0, and the chart labels drop the decimals (12000 for 12000.25). The default currency format has one decimal, which is odd for money. |
+
 ## Defect candidates
 
 | # | Candidate |
@@ -31,6 +35,8 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | U-R3 | The chart field list stays empty until a Sub Total field has been chosen, and the chart is only used when a Category is also chosen. Nothing tells the user that. |
 | U-R4 | The sample chart shows "Y%" labels and placeholder values (2367510 and so on) that do not come from the data. |
 | U-R5 | Clicking a field in the list and then Ctrl-clicking another selected only the last one when driven by automation; to re-check by hand. |
+| U-R7 | Groups and chart bars are in alphabetical order of the stage (Closed Lost first), not in the order of the sales stages. |
+| U-R8 | The chart has no value axis scale and its labels drop decimals. |
 | U-R6 | The page needs a lot of scrolling in a small window: Name, object picker, field lists, format rows, preview and chart are one long column. |
 
 ## Not yet tested (next)
