@@ -168,6 +168,63 @@ describe('c-template-content-details', () => {
         expect(toast).toMatchObject({ title: 'Success', variant: 'success', message: 'Section "Intro" was Saved' });
     });
 
+    async function openSavedSection(content, extra = {}) {
+        gettemplatesectiondata.mockResolvedValue({ ...SECTION, DxCPQ__Section_Content__c: content, ...extra });
+        const element = mount();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runAllTimers();
+        await flush();
+        return element;
+    }
+
+    const savedContent = () => saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails.DxCPQ__Section_Content__c;
+
+    // C-D1 (same defect as Table D11): the PDF engine prints `courier` (lowercase) in Times; only a generic name
+    // such as monospace gives Courier.
+    it('offers a Courier font that the PDF can render', async () => {
+        const element = await openSavedSection('<p>Hi</p>');
+
+        const courier = [...element.shadowRoot.querySelectorAll('select[name="font"] option')].find(o => o.textContent === 'Courier');
+        expect(courier.value).toBe('courier, monospace');
+    });
+
+    it('upgrades the old lowercase courier font to a stack the PDF can render when the section is saved', async () => {
+        const element = await openSavedSection('<p><span style="font-family: courier;">Hi</span></p>');
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe('<p><span style="font-family: courier, monospace;">Hi</span></p>');
+    });
+
+    // C-D3: a section with New Page ticked is stored wrapped in a page-break div and reopens with that div in the
+    // editor, so every Update wrapped it once more (seen as three nested divs after three saves).
+    it('keeps a single page-break wrapper however many times a New Page section is saved', async () => {
+        const wrapped = '<div style="page-break-before : always;"><div style="page-break-before : always;"><p>Hi</p></div></div>';
+        const element = await openSavedSection(wrapped, { DxCPQ__New_Page__c: true });
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe('<div style="page-break-before : always;"><p>Hi</p></div>');
+    });
+
+    // C-D2: the custom CSS wrapper was written as <div style="...> without the closing quote.
+    it('closes the style attribute of the custom section CSS wrapper', async () => {
+        const element = await openSavedSection('<p>Hi</p>');
+        element.shadowRoot.querySelector('lightning-button-icon[title="Custom Section CSS"]').click();
+        await flush();
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        textarea.value = 'color: red;';
+        textarea.dispatchEvent(new CustomEvent('change'));
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe('<div style="color: red;"><p>Hi</p></div>');
+    });
+
     it('does not call Apex when the section has no name, and shows an error toast', async () => {
         const element = mount();
         const seen = listen(element, ['savesectiondata', 'lightning__showtoast']);

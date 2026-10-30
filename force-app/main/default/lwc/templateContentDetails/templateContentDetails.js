@@ -423,8 +423,21 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
     return str;
   }  
 
+  // The PDF engine prints a lone lowercase `courier` in Times; a stack ending in a generic name gives Courier.
+  upgradeLegacyFonts(str) {
+    return str.replace(/font-family:\s*courier\s*;/gi, 'font-family: courier, monospace;');
+  }
+
+  // A New Page section is stored inside a page-break div and reopens with that div in the editor, so take the
+  // old wrapper(s) off before the save adds one back (otherwise they nest more deeply on every save).
+  removePageBreakWrappers(str) {
+    const wrapper = /^\s*<div style="page-break-before\s*:\s*always;?">([\s\S]*)<\/div>\s*$/i;
+    while (wrapper.test(str)) { str = str.replace(wrapper, '$1'); }
+    return str;
+  }
+
   handlesectionsave(event) {
-    this.richtextVal = this.handleWhiteSpacesinText(this.richtextVal);
+    this.richtextVal = this.removePageBreakWrappers(this.upgradeLegacyFonts(this.handleWhiteSpacesinText(this.richtextVal)));
     var richtextvalvar = this.richtextVal;
     this.updatedRichTextVal = this.richtextVal;
     var mergefieldsfinalList = [];
@@ -440,7 +453,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
       if (this.newpage) {
         this.Recorddetailsnew.DxCPQ__Section_Content__c = "<div style=\"page-break-before : always;\">" + this.richtextVal + "</div>";
       } else if(this.sectioncssval) {
-        this.Recorddetailsnew.DxCPQ__Section_Content__c = `<div style=\"${this.sectioncssval}\>` + this.richtextVal + `</div>`;
+        this.Recorddetailsnew.DxCPQ__Section_Content__c = `<div style="${this.sectioncssval}">` + this.richtextVal + `</div>`;
       }
       else{
         this.Recorddetailsnew.DxCPQ__Section_Content__c = this.richtextVal;
@@ -817,7 +830,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
         { label: 'Times New Roman', value: 'serif' },
         { label: 'Arial', value: 'sans-serif' },
         { label: 'Serif', value: 'serif' },
-        { label: 'Courier', value: 'courier' },
+        { label: 'Courier', value: 'courier, monospace' },
     ];
   }
 
