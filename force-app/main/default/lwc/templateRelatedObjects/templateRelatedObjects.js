@@ -778,6 +778,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                       // Added Fields
                       this.loadUp = true;
                       this.allNumericalFields = [];
+                      this.allnumValues = [];
 
                       setTimeout(() => {
                           for (let j = 0; j < parsedJson.tablelistValues.length; j++) {
@@ -795,6 +796,8 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                                       parsedJson.subTotal.forEach(key => {
                                           if (key.toLowerCase() == this.lstOfObjects[0].fieldList[i].value.toLowerCase()) {
                                               this.allNumericalFields.push(this.lstOfObjects[0].fieldList[i].label);
+                                              // The save writes the values, the pills show the labels: restore both (R-D6).
+                                              this.allnumValues.push(this.lstOfObjects[0].fieldList[i].value);
                                           }
                                       });
                                       this.lstOfObjects[0].fieldList.splice(i, 1);

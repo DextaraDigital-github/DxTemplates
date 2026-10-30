@@ -29,6 +29,8 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 |---|---|---|
 | R-D1 | The saved font family was a lone `Verdana` (default, even when the dropdown showed Times New Roman) and the Courier option was lowercase `courier`; the PDF prints both in Times (same as Table D11 and Context C-D1). Now the default is `Verdana, sans-serif`, the Courier option is `courier, monospace`, a Verdana option was added to the dropdown, and old saved values are upgraded when a section is opened. The logic is in a new shared helper `dxPdfFonts` (10 Jest tests, failed first because the module did not exist). | FIXED and UI-verified: after clearing the page caches, reopening "RO Opps" and pressing Save stored `Verdana, sans-serif` for both the header and the category style (it was `Verdana`). The Related Objects PDF itself has not been regenerated since; the stack is the one measured to give Helvetica in the Table PDF. |
 
+| R-D6 | **Reopening a saved section and saving it again lost the Sub Total fields** (and with them the chart settings on the next open). The pills were rebuilt from the saved labels, but the save writes a separate list of values that was not restored, so the save wrote `subTotal: []`; and the chart is only restored when `subTotal` is not empty. Found while testing field reorder and formats in the browser (saved `subTotal` was `[]` although the Amount pill was showing). Now the values are restored together with the labels. | FIXED. Jest test (first one for the load-then-save path of this component, 10 tests now) failed first with `[]` instead of `["Amount"]`. UI-verified: after reopening and saving, `subTotal` stays `["Amount"]` and `displayChart` and `selGraphvalue` are kept. |
+
 ## Defect candidates
 
 | # | Candidate |
@@ -37,6 +39,11 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | R-D3 | The PDF starts with an empty page when the first section has New Page ticked (the page break comes before any content). In this run the first section was the Context section with New Page. Decide whether New Page on the first section should be ignored. |
 | R-D4 | In the PDF the groups come out in an odd order (Closed Lost, Closed Won, Negotiation/Review, Proposal, Needs Analysis, Qualification, Prospecting); neither alphabetical nor the stage order. |
 | R-D5 | The default currency format "x.y" rounds money to one decimal (R12). Changing the default to two decimals would only affect new sections; needs your decision. |
+
+| R13 | Move up and move down in the chosen fields list; Add and Remove | Pass. Name moved above Stage and back; Description added at the end and removed again. A removed field returns to the top of the available list (not to its old place). |
+| R14 | Serial-Number, Currency format x.yz, font Courier, then Save | Pass. Saved `SerialNumber` true, `currencyFormat` "2", `fontfamily` `courier, monospace`, field order Stage, Name, Amount. The editor preview switched to Courier. |
+| R15 | Reopen the saved section | Pass: object, category, fields and Sub Total pill return, groups appear in the stage order in the editor preview. (The font dropdown still shows "Times New Roman".) |
+| R-D7 | Candidate, untested: for a Sub Total field taken from a parent object (a field path with a dot), the load code adds a label inside a loop over every field of that object, so it would add many labels instead of one (`templateRelatedObjects.js` around line 837). | Not reproduced; needs a section with a parent-object number field. |
 
 ## Observations for the UI discussion
 
@@ -49,6 +56,8 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | U-R5 | Clicking a field in the list and then Ctrl-clicking another selected only the last one when driven by automation; to re-check by hand. |
 | U-R7 | Groups and chart bars are in alphabetical order of the stage (Closed Lost first), not in the order of the sales stages. |
 | U-R8 | The chart has no value axis scale and its labels drop decimals. |
+| U-R9 | The font dropdown does not follow the saved or chosen font: after reopening it shows "Times New Roman" while the table is in Courier (same pattern as Context U-C1). |
+| U-R10 | The editor preview shows the categories in the stage order, but the real Preview and PDF show them in a different order (R-D4). |
 | U-R6 | The page needs a lot of scrolling in a small window: Name, object picker, field lists, format rows, preview and chart are one long column. |
 
 ## Not yet tested (next)

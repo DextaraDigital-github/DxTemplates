@@ -1,6 +1,11 @@
 import { createElement } from 'lwc';
 import TemplateRelatedObjects from 'c/templateRelatedObjects';
 import getRelatedObjects from '@salesforce/apex/RelatedObjectsClass.getRelatedObjects';
+import getFields from '@salesforce/apex/MergeFieldsClass.getFields';
+import getGroupingValues from '@salesforce/apex/RelatedObjectsClass.getGroupingValues';
+import getSObjectListFiltering from '@salesforce/apex/RelatedObjectsClass.getSObjectListFiltering';
+import getExistingConditions from '@salesforce/apex/RelatedObjectsClass.getExistingConditions';
+import gettemplatesectiondata from '@salesforce/apex/SaveDocumentTemplatesection.gettemplatesectiondata';
 import deletetemplate from '@salesforce/apex/SaveDocumentTemplatesection.deletetemplate';
 import saveDocumentTemplateSectionDetails from '@salesforce/apex/SaveDocumentTemplatesection.saveDocumentTemplateSectionDetails';
 
@@ -167,6 +172,48 @@ describe('c-template-related-objects', () => {
         await flush();
 
         expect(deletetemplate).toHaveBeenCalledWith({ secidtobedeleted: 'a02SECTION', doctemplateid: 'a00OTHER' });
+    });
+
+    // R-D6: the saved Sub Total was rebuilt on load for the pills (labels) but not for the save (values), so
+    // reopening a section and saving it again wrote `subTotal: []` and the chart settings were lost on the next open.
+    it('keeps the Sub Total fields when a saved section is opened and saved again', async () => {
+        getRelatedObjects.mockResolvedValue({ Opportunity: 'AccountId' });
+        getFields.mockResolvedValue([
+            { name: 'Name', apiName: 'Name', dataType: 'STRING' },
+            { name: 'Amount', apiName: 'Amount', dataType: 'CURRENCY' }
+        ]);
+        getGroupingValues.mockResolvedValue({});
+        getSObjectListFiltering.mockResolvedValue([]);
+        getExistingConditions.mockResolvedValue([]);
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'RO Opps', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 4, DxCPQ__Type__c: 'Related Objects',
+            DxCPQ__Section_Visibility_Rule__c: null,
+            DxCPQ__Section_Content__c: JSON.stringify({
+                whereClause: '()', mainChildObject: 'Opportunity', childLookupfieldAPIname: 'AccountId', SerialNumber: false,
+                subTotal: ['Amount'], newPage: false, displayChart: false, chartLabel: 'Chart', chartNewPage: true,
+                tablelistValues: ['Name', 'Amount'], tablelistLabels: ['Name', 'Amount'], grouping: '',
+                dateFormat: '564/', timeFormat: '124', numberFormat: '2', currencyFormat: '1',
+                style: {
+                    category: { fontcolor: '', backgroundColor: '', fontfamily: 'Verdana', fontsize: '10px' },
+                    header: { fontcolor: '', backgroundColor: '', fontfamily: 'Verdana', fontsize: '10px' }
+                },
+                groupingCatVals: []
+            })
+        });
+        saveDocumentTemplateSectionDetails.mockResolvedValue({ Id: 'a02SECTION', Name: 'RO Opps' });
+        const element = mount({ sectionrecordid: 'a02SECTION', selectedObjectName: 'Account' });
+        await flush();
+
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.advanceTimersByTime(1100);
+        await flush();
+        button(element, 'Save').click();
+        await flush();
+
+        expect(saveDocumentTemplateSectionDetails).toHaveBeenCalledTimes(1);
+        const saved = JSON.parse(saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails.DxCPQ__Section_Content__c);
+        expect(saved.subTotal).toEqual(['Amount']);
     });
 
     // B7: handlesectionsave ended with `this.template.querySelector('c-template-designer-cmp').showPreview = true`.
