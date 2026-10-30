@@ -2,6 +2,7 @@ import { LightningElement, track, api } from 'lwc';
 import { NavigationMixin } from 'lightning/navigation';
 import { loadStyle } from 'lightning/platformResourceLoader';
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
+import { DEFAULT_FONT_FAMILY, COURIER_FONT_FAMILY, upgradeLegacyFontFamily } from 'c/dxPdfFonts';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import rte_tbl from '@salesforce/resourceUrl/rte_tbl';
 import getFields from '@salesforce/apex/MergeFieldsClass.getFields';
@@ -303,7 +304,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
       },
   ];
 
-  fontfamily = 'Verdana';
+  fontfamily = DEFAULT_FONT_FAMILY;
   fontfamilyoptions = [{
           value: 'Arial',
           label: 'Arial'
@@ -612,7 +613,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
       this.timeFormatvalue = '124';
       this.numFormatvalue = '2';
       this.curFormatvalue = '1';
-      this.fontfamily = "Verdana";
+      this.fontfamily = DEFAULT_FONT_FAMILY;
       this.fontsize = '10px';
       this.SerialNumber = false;
       this.catStyle = '';
@@ -868,7 +869,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                       this.timeFormatvalue = parsedJson.timeFormat;
                       this.numFormatvalue = parsedJson.numberFormat;
                       this.curFormatvalue = parsedJson.currencyFormat;
-                      this.fontfamily = parsedJson.style.header.fontfamily;
+                      this.fontfamily = upgradeLegacyFontFamily(parsedJson.style.header.fontfamily);
                       this.fontsize = parsedJson.style.header.fontsize;
                       //this.attributeCheckboxValue = parsedJson.getAttributes;
 
@@ -2219,7 +2220,8 @@ let ruleIdtoReset = this.ruleCondition == true ? this.ruleIdCreated: this.visibi
             { label: 'Times New Roman', value: 'serif' },
             { label: 'Arial', value: 'sans-serif' },
             { label: 'Serif', value: 'serif' },
-            { label: 'Courier', value: 'courier' },
+            { label: 'Verdana', value: DEFAULT_FONT_FAMILY },
+            { label: 'Courier', value: COURIER_FONT_FAMILY },
         ];
     }
 

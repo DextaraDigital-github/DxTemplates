@@ -19,12 +19,24 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | R8 | Preview with 10 Opportunities in 7 stages (seed: `docs/tools/org-seed/seed_opportunities.apex`) | Pass. One group per stage, each with a Sub Total, then a Grand Total. Chart has 7 bars with correct values and shares: Closed Won 250000 is 52% of 478,947; Prospecting 16046 (3 records) is 3%. |
 | R9 | Number formatting in the preview | As configured: currency format "x.y" shows 7800.1 and 250000.0, and the chart labels drop the decimals (12000 for 12000.25). The default currency format has one decimal, which is odd for money. |
 
+| R10 | **Real PDF** of the whole "ZZ Clip Test" template (activate, PDF Generator for Datamatics, A4 Portrait; attachment read with pdfjs) | 4 pages. Page 1 is empty (see R-D3). Page 2: Context text in Courier-Bold, the Tables, then the Related Objects table; page 3: the last group, then Grand Total 478946.6 (correct: 7800.1+250000+56000+12000.25+98000+39100.75+16045.5); page 4: "Chart" on its own page ("Chart in new page") with 7 bars and the right values and shares (Closed Won 250000, 52%). The table and the chart are rendered with the section's colours (header grey, Sub Total blue 0,119,182, Grand Total dark blue). |
+| R11 | Fonts and sizes in that PDF | The Related Objects table is entirely in Times (serif): R-D1 confirmed. Sizes are as configured (10px prints as 7.5pt). |
+| R12 | Rounding in that PDF | Amounts print with one decimal: 12000.25 as 12000.3, 35000.75 as 35000.8, and the Qualification Sub Total as 39100.8 instead of 39100.75. The default currency format is "x.y". |
+
+## Defects
+
+| # | Defect | Status |
+|---|---|---|
+| R-D1 | The saved font family was a lone `Verdana` (default, even when the dropdown showed Times New Roman) and the Courier option was lowercase `courier`; the PDF prints both in Times (same as Table D11 and Context C-D1). Now the default is `Verdana, sans-serif`, the Courier option is `courier, monospace`, a Verdana option was added to the dropdown, and old saved values are upgraded when a section is opened. The logic is in a new shared helper `dxPdfFonts` (10 Jest tests, failed first because the module did not exist). | FIXED in code and deployed; the saved JSON and the PDF still to re-check in the browser. |
+
 ## Defect candidates
 
 | # | Candidate |
 |---|---|
-| R-D1 | The saved font family is a lone `Verdana`; the PDF engine prints that in Times (same family of defect as Table D11 and Context C-D1). To confirm in the real PDF. |
-| R-D2 | `dateFormat` was saved as `564/`, which looks like an internal code rather than a format. To check against the PDF output. |
+| R-D2 | `dateFormat` is saved as `564/`, which looks like an internal code rather than a format. Not yet checked against any date field in the PDF. |
+| R-D3 | The PDF starts with an empty page when the first section has New Page ticked (the page break comes before any content). In this run the first section was the Context section with New Page. Decide whether New Page on the first section should be ignored. |
+| R-D4 | In the PDF the groups come out in an odd order (Closed Lost, Closed Won, Negotiation/Review, Proposal, Needs Analysis, Qualification, Prospecting); neither alphabetical nor the stage order. |
+| R-D5 | The default currency format "x.y" rounds money to one decimal (R12). Changing the default to two decimals would only affect new sections; needs your decision. |
 
 ## Observations for the UI discussion
 
