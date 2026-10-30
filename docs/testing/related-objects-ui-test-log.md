@@ -35,7 +35,7 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 
 | # | Candidate |
 |---|---|
-| R-D2 | `dateFormat` is saved as `564/`, which looks like an internal code rather than a format. Not yet checked against any date field in the PDF. |
+| R-D2 | RETRACTED. `dateFormat` `564/` is just the internal code of the "mm/dd/yyyy" option (the dropdown values are codes: `654/*` is dd/MMM/yyyy). Not a defect. |
 | R-D3 | The PDF starts with an empty page when the first section has New Page ticked (the page break comes before any content). In this run the first section was the Context section with New Page. Decide whether New Page on the first section should be ignored. |
 | R-D4 | In the PDF the groups come out in an odd order (Closed Lost, Closed Won, Negotiation/Review, Proposal, Needs Analysis, Qualification, Prospecting); neither alphabetical nor the stage order. |
 | R-D5 | The default currency format "x.y" rounds money to one decimal (R12). Changing the default to two decimals would only affect new sections; needs your decision. |
@@ -43,6 +43,7 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | R13 | Move up and move down in the chosen fields list; Add and Remove | Pass. Name moved above Stage and back; Description added at the end and removed again. A removed field returns to the top of the available list (not to its old place). |
 | R14 | Serial-Number, Currency format x.yz, font Courier, then Save | Pass. Saved `SerialNumber` true, `currencyFormat` "2", `fontfamily` `courier, monospace`, field order Stage, Name, Amount. The editor preview switched to Courier. |
 | R15 | Reopen the saved section | Pass: object, category, fields and Sub Total pill return, groups appear in the stage order in the editor preview. (The font dropdown still shows "Times New Roman".) |
+| R16 | Add the Close Date field, choose date format dd/MMM/yyyy, Save, then Preview | Pass. Saved `tablelistValues` with `CloseDate` and `dateFormat` `654/*`; the sub total was kept. Preview shows dates like 29/Dec/2026, amounts with two decimals (x.yz: 35000.75, Sub Total 39100.75), serial numbers 1, 2 restarting inside each group, and the Courier font. |
 | R-D7 | Candidate, untested: for a Sub Total field taken from a parent object (a field path with a dot), the load code adds a label inside a loop over every field of that object, so it would add many labels instead of one (`templateRelatedObjects.js` around line 837). | Not reproduced; needs a section with a parent-object number field. |
 
 ## Observations for the UI discussion
