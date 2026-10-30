@@ -364,6 +364,48 @@ describe('c-template-table-details', () => {
         expect(saved.columnOrder).toEqual(['Header 2', 'Header 1', 'Header 3']);
     });
 
+    // D1: the table re-applies the section-wide header/body colours every time it renders, which painted over
+    // the colour a user had given to one single cell.
+    it('keeps the colour of a single cell when the table renders again', async () => {
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+            DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+            DxCPQ__Section_Details__c: JSON.stringify({
+                rownumber: 2, colnumber: 3, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                fontsize: '12px', fontfamily: 'Verdana', borderstyle: '', bordercolor: '', newPage: false,
+                sectionInfo: [
+                    { 'data-id': 'Header 1', Content: '<p>H1</p>', backgroundColor: 'rgb(255, 0, 0)' },
+                    { 'data-id': 'Header 2', Content: '<p>H2</p>' },
+                    { 'data-id': 'row1col1div', Content: '<p>A1</p>', backgroundColor: 'rgb(0, 128, 0)' },
+                    { 'data-id': 'row1col2div', Content: '<p>B1</p>' }
+                ]
+            })
+        });
+        const element = mount({ sectionrecordid: 'a02SECTION' });
+        await flush();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        // Force another render of the table.
+        const headersBox = () => [...element.shadowRoot.querySelectorAll('lightning-input')].find(i => i.title === 'Include Header');
+        headersBox().checked = true;
+        headersBox().click();
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        const headerCells = element.shadowRoot.querySelectorAll('thead th');
+        const bodyCells = element.shadowRoot.querySelectorAll('tbody tr:first-child td');
+        const colourOf = cells => [...cells].map(c => c.style.backgroundColor);
+        expect(colourOf(headerCells)[0]).toBe('rgb(255, 0, 0)');
+        expect(colourOf(headerCells)[1]).toBe('rgb(255, 255, 255)');
+        expect(colourOf(bodyCells)[0]).toBe('rgb(0, 128, 0)');
+        expect(colourOf(bodyCells)[1]).toBe('rgb(255, 255, 255)');
+    });
+
     // D3: unticking Headers removes the header row from the page and ticking it again builds a new, empty one.
     // The header text is still held in the section data, so it has to be put back.
     it('brings the header text back when Headers is unticked and ticked again', async () => {

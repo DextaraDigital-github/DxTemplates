@@ -847,7 +847,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             th.style.color = this.selectedHFontColor;
 
             let thColumn = this.tablecolumns.find(column => column.id === thId);
-            if ((!thColumn || !thColumn.backgroundColor) && this.selectedHbgColor) {
+            if ((!thColumn || !thColumn.backgroundColor) && !this.cellsWithOwnColour.has(thId) && this.selectedHbgColor) {
                 th.style.backgroundColor = this.selectedHbgColor;
             }
         });
@@ -858,10 +858,32 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             td.style.color = this.selectedBFontColor;
 
             let tdColumn = this.tablecolumns.find(column => column.id === tdId);
-            if ((!tdColumn || !tdColumn.backgroundColor) && this.selectedBBgcolor) {
+            if ((!tdColumn || !tdColumn.backgroundColor) && !this.cellsWithOwnColour.has(tdId) && this.selectedBBgcolor) {
                 td.style.backgroundColor = this.selectedBBgcolor;
             }
         });
+    }
+
+    /**
+    * Cells (by header id or row/column id) whose background was set one by one, so the section-wide
+    * header/body colour must not paint over them.
+    */
+    cellsWithOwnColour = new Set();
+
+    /**
+    * Remembers a loaded cell colour as the cell's own when it differs from the section-wide colour.
+    */
+    rememberOwnColour(cell, savedColour) {
+        const toRgb = colour => {
+            const probe = document.createElement('div');
+            probe.style.backgroundColor = colour;
+            return probe.style.backgroundColor;
+        };
+        const cellId = cell.getAttribute('data-headercell') || cell.getAttribute('data-bodycell');
+        const sectionColour = cell.tagName === 'TH' ? this.selectedHbgColor : this.selectedBBgcolor;
+        if (cellId && toRgb(savedColour) !== toRgb(sectionColour)) {
+            this.cellsWithOwnColour.add(cellId);
+        }
     }
 
     /**
@@ -1221,6 +1243,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         this.newPage = false;
         this.selectedBBgcolor = '#FFFFFF';
         this.selectedHbgColor = '#FFFFFF';
+        this.cellsWithOwnColour.clear();
 
         this.template.querySelectorAll('lightning-input-rich-text').forEach(element => {
             element.value = '';
@@ -1360,10 +1383,11 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                                     let parentElement = element.closest('td') || element.closest('th');
                                     if (parentElement) {
                                         parentElement.style.backgroundColor = item['backgroundColor'];
+                                        this.rememberOwnColour(parentElement, item['backgroundColor']);
                                     }
                                 }
 
-                                // Fix for merging cells 
+                                // Fix for merging cells
                                 if (item['cellColspan'] && item['cellColspan'] > 1) {
                                     let parentElement = element.closest('td') || element.closest('th');
                                     if (parentElement) {
@@ -1759,6 +1783,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                 selectedCell.value = "";
                 let selectedCellParent = selectedCell.closest('td') || selectedCell.closest('th');
                 selectedCellParent.style.backgroundColor = "";
+                this.cellsWithOwnColour.delete(selectedCellParent.getAttribute('data-headercell') || selectedCellParent.getAttribute('data-bodycell'));
             }
         }
     }
@@ -2308,6 +2333,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                 let elm1 = this.template.querySelector(`[data-id="${innerdiv}"]`);
                 let selectedTd = elm1.closest('td');
                 selectedTd.style.backgroundColor = this.cellBgColor;
+                this.cellsWithOwnColour.add(this.selectedTableRow);
 
                 let colIndex = this.tablecolumns.findIndex(col => col.id === this.selectedTableRow);
                 if (colIndex !== -1) {
@@ -2340,6 +2366,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                 let elm2 = this.template.querySelector(`[data-head="${this.selectedHeader}"]`);
                 let selectedHeaderTd = elm2.closest('th');
                 selectedHeaderTd.style.backgroundColor = this.cellBgColor;
+                this.cellsWithOwnColour.add(this.selectedHeader);
 
                 // Update divContentArray
                 let key = elm2.dataset.head;
