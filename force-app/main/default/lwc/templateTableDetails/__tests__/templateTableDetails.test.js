@@ -415,7 +415,7 @@ describe('c-template-table-details', () => {
             DxCPQ__Section_Details__c: JSON.stringify({
                 rownumber: 2, colnumber: 3, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
                 headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
-                fontsize: '12px', fontfamily: 'courier', borderstyle: '', bordercolor: '', newPage: false, sectionInfo: []
+                fontsize: '12px', fontfamily: 'serif', borderstyle: '', bordercolor: '', newPage: false, sectionInfo: []
             })
         });
         const element = mount({ sectionrecordid: 'a02SECTION' });
@@ -425,12 +425,40 @@ describe('c-template-table-details', () => {
         jest.runOnlyPendingTimers();
         await flush();
 
-        expect(element.shadowRoot.querySelector('.mytable').style.fontFamily).toBe('courier');
+        expect(element.shadowRoot.querySelector('.mytable').style.fontFamily).toBe('serif');
 
         button(element, 'Update').click();
         await flush();
         const saved = saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails;
-        expect(saved.DxCPQ__Section_Content__c).toContain('font-family: courier');
+        expect(saved.DxCPQ__Section_Content__c).toContain('font-family: serif');
+    });
+
+    // D11: the PDF engine only knows generic family names. "Verdana" and lowercase "courier" came out as Times in
+    // the PDF, so each option now carries a fallback and sections saved with the old values are upgraded on load.
+    it.each([
+        ['Verdana', 'Verdana, sans-serif'],
+        ['courier', 'courier, monospace']
+    ])('upgrades the saved font family %s to a stack the PDF can render', async (saved, expected) => {
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+            DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+            DxCPQ__Section_Details__c: JSON.stringify({
+                rownumber: 2, colnumber: 3, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                fontsize: '12px', fontfamily: saved, borderstyle: '', bordercolor: '', newPage: false, sectionInfo: []
+            })
+        });
+        const element = mount({ sectionrecordid: 'a02SECTION' });
+        await flush();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        expect(element.shadowRoot.querySelector('.mytable').style.fontFamily).toBe(expected);
+        const familyBox = [...element.shadowRoot.querySelectorAll('lightning-combobox')].find(c => c.label === 'Font-Family');
+        expect(familyBox.value).toBe(expected);
+        expect(familyBox.options.map(o => o.value)).toEqual(['sans-serif', 'Verdana, sans-serif', 'serif', 'courier, monospace']);
     });
 
     // D3: unticking Headers removes the header row from the page and ticking it again builds a new, empty one.

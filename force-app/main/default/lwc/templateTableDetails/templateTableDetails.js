@@ -90,14 +90,19 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         { value: '14px', label: '14' }, { value: '16px', label: '16' }, { value: '18px', label: '18' }, { value: '20px', label: '20' }, { value: '22px', label: '22' }, { value: '24px', label: '24' }, { value: '26px', label: '26' }, { value: '28px', label: '28' }, { value: '36px', label: '36' }, { value: '48px', label: '48' }, { value: '72px', label: '72' }
     ];
 
-    fontfamily = "Verdana";
+    // The PDF engine only knows generic family names, and lowercase "courier" or "Verdana" alone fall back to Times,
+    // so each option carries a generic fallback.
+    fontfamily = "Verdana, sans-serif";
 
     fontfamilyoptions = [
         { value: 'sans-serif', label: 'Arial' },
-        { value: 'Verdana', label: 'Verdana' },
+        { value: 'Verdana, sans-serif', label: 'Verdana' },
         { value: 'serif', label: 'Times New Roman' },
-        { value: 'courier', label: 'Courier' },
+        { value: 'courier, monospace', label: 'Courier' },
     ];
+
+    // Values saved before the fallbacks were added.
+    legacyFontFamilies = { 'Verdana': 'Verdana, sans-serif', 'courier': 'courier, monospace' };
 
     @track columnWidthValue;
     @track columnWidthOptions = [
@@ -1221,7 +1226,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         this.divContentArray = [];
 
         this.fontsize = "12px";
-        this.fontfamily = "Verdana";
+        this.fontfamily = "Verdana, sans-serif";
 
         this.isLoaded = false;
 
@@ -1307,7 +1312,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
                     this.selectedHFontColor = parsedJson.headerFont;
                     this.selectedHbgColor = parsedJson.headbackground;
 
-                    this.fontfamily = parsedJson.fontfamily;
+                    this.fontfamily = this.legacyFontFamilies[parsedJson.fontfamily] || parsedJson.fontfamily;
 
                     this.fontsize = parsedJson.fontsize;
                     this.isSerialNumberCheck = parsedJson.serialNumberColumn;
