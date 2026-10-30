@@ -593,8 +593,6 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
     const mergeField = this.template.querySelector('c-dx-lookup-fields-displaycmp').getMergeField();
     if (mergeField != undefined) {
       this.mergefieldname = '{!' + this.selectedObjectName + '.' + mergeField + '}';
-      this.richtextVal += this.mergefieldname;
-      this.updatedRichTextVal = this.richtextVal;
       if(this.rowlevelmerge){
         //let rowIndex = this.selectedRowIndex;
             this.isTranslateModalOpen = true;
@@ -609,6 +607,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
       }
       else{
         this.richtextVal += this.mergefieldname;
+        this.updatedRichTextVal = this.richtextVal;
         this.template.querySelector('c-modal').hide();
       }
       this.selectedMergefields.push(this.mergefieldname);

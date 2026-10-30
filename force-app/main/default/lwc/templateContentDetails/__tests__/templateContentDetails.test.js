@@ -210,6 +210,23 @@ describe('c-template-content-details', () => {
         expect(savedContent()).toBe('<div style="page-break-before : always;"><p>Hi</p></div>');
     });
 
+    // C-D4: one click on Insert in the merge field dialog added the field to the text twice.
+    it('inserts a chosen merge field once', async () => {
+        const element = await openSavedSection('<p>Hello </p>');
+        const toolbarButton = [...element.shadowRoot.querySelectorAll('lightning-rich-text-toolbar-button')]
+            .find(b => b.iconAlternativeText === 'Add Merge Field');
+        toolbarButton.click();
+        await flush();
+        element.shadowRoot.querySelector('c-dx-lookup-fields-displaycmp').getMergeField = () => 'Name';
+        button(element, 'insert').click();
+        await flush();
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent().match(/\.Name\}/g)).toHaveLength(1);
+    });
+
     // C-D2: the custom CSS wrapper was written as <div style="...> without the closing quote.
     it('closes the style attribute of the custom section CSS wrapper', async () => {
         const element = await openSavedSection('<p>Hi</p>');

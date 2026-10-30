@@ -21,6 +21,7 @@ Component: `templateContentDetails` (Context and Clause screens share it). Org: 
 | C-D1 | The Courier option stored `courier`; the PDF engine only knows generic names, so it printed Times (same as Table D11). Option is now `courier, monospace`; saving also upgrades old `font-family: courier;` in existing content. | FIXED, Jest (3 new tests failed first), UI-verified: a section holding `courier;` was saved again and now holds `courier, monospace;`. |
 | C-D2 | `<div style="${css}\>` lost the closing quote of the style attribute, so the custom CSS wrapper was invalid HTML. | FIXED, Jest test failed first. Not yet checked in the browser or the PDF. |
 | C-D3 | A New Page section reopens with its page-break div inside the editor, so each Update wrapped it again. Now the old wrapper(s) are taken off before the new one is added; unticking New Page also removes the page break. | FIXED, Jest test failed first, UI-verified: 6 nested wrappers became 1 on the next Update. |
+| C-D4 | One click on Insert in the merge field dialog added the merge field to the text **twice** (`{!Account.Name}{!Account.Name}`), seen in the browser. `getMergeField()` appended it on two lines; the first also changed the editor text when the dialog was opened from the translation table. Now it is added once, and only on the normal path. | FIXED, Jest test failed first (18 tests now). Browser re-check pending (the tab stopped answering). |
 
 ## Observations for the UI discussion
 
@@ -30,6 +31,7 @@ Component: `templateContentDetails` (Context and Clause screens share it). Org: 
 | U-C2 | The font list has two entries with the same value (Times New Roman and Serif both `serif`). |
 | U-C3 | The custom CSS is not saved with the section and is not shown again on reopen (only the wrapper in the content remains). Custom CSS and New Page cannot be combined (New Page wins). |
 | U-C4 | A new page break is stored inside the content, so the editor shows no sign of it except the ticked box. |
+| U-C5 | The merge field is always added at the **end** of the text, not at the caret. |
 
 ## Not yet tested (next)
 
