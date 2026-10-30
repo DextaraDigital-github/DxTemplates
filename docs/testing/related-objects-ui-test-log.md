@@ -46,6 +46,8 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | R16 | Add the Close Date field, choose date format dd/MMM/yyyy, Save, then Preview | Pass. Saved `tablelistValues` with `CloseDate` and `dateFormat` `654/*`; the sub total was kept. Preview shows dates like 29/Dec/2026, amounts with two decimals (x.yz: 35000.75, Sub Total 39100.75), serial numbers 1, 2 restarting inside each group, and the Courier font. |
 | R17 | Apply Filter(s): Object Opportunity, Field Amount, Operator Greater than, Value 10000, Create Rule; then Save the section | Pass. A Rule (`Condition1`) and a Rule Condition (`amount > 10000`) were created; after the section Save, `RuleId__c` points to the rule and the section JSON holds `whereClause` `( amount > 10000 )`. The rule is created when the dialog's Create Rule is pressed, before the section is saved (a cancelled section edit leaves the rule behind). |
 | R18 | Preview with that filter | Pass. Only opportunities above 10000 appear: Prospecting shows just Acme Renewal 2026, Qualification just RO Seed 3, Closed Lost is gone; Grand Total 463346.00 (= 478946.60 minus the four rows under 10000). The chart is built from the filtered data. |
+| R19 | New Page ticked, header background #ffcc00, header font #cc0000, category background #e0f0ff, font size 12, Save | Pass. `New_Page__c` true and `newPage` true in the JSON; the style block holds the three colours and `12px`; the filter `whereClause` was kept. (The colours were set with a script on the colour inputs, not through the native colour picker.) |
+| R20 | Delete a saved section ("RO Del", a copy seeded with Apex) | Pass. One click removes it from the section list and from the database, and the designer moves to the previous section. No confirmation is asked. |
 | R-D7 | Candidate, untested: for a Sub Total field taken from a parent object (a field path with a dot), the load code adds a label inside a loop over every field of that object, so it would add many labels instead of one (`templateRelatedObjects.js` around line 837). | Not reproduced; needs a section with a parent-object number field. |
 
 ## Observations for the UI discussion
@@ -62,6 +64,7 @@ Where it is stored: the whole configuration is JSON in `Section_Content__c` of t
 | U-R9 | The font dropdown does not follow the saved or chosen font: after reopening it shows "Times New Roman" while the table is in Courier (same pattern as Context U-C1). |
 | U-R10 | The editor preview shows the categories in the stage order, but the real Preview and PDF show them in a different order (R-D4). |
 | U-R11 | The filter dialog's Object Name list only offers the section's own object (Opportunity); there is no way to filter on a parent field from here. The Value box looks like a search box and the dialog gives no feedback when a rule is created (it just closes). |
+| U-R12 | Delete removes the section at once, with no "Are you sure?" (same for the other section types; to confirm for them). |
 | U-R6 | The page needs a lot of scrolling in a small window: Name, object picker, field lists, format rows, preview and chart are one long column. |
 
 ## Not yet tested (next)
