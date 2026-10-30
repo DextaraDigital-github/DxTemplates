@@ -12,7 +12,7 @@ Component: `templateContentDetails` (Context and Clause screens share it). Org: 
 | C4 | Update the same section again and again with New Page ticked | **Defect C-D3**: the page-break div nested one level deeper on every save (6 deep after 6 saves). |
 | C5 | Custom Section CSS (code review, Jest) | **Defect C-D2**: wrapper written as `<div style="...>` without the closing quote. |
 
-| C6 | Real PDF of Seq A (stored content wrapped between "Page one text" and "Last text", rendered with `renderAsPdfLWC`, read with pdfjs) | Pass after the fixes. Page 1 holds only "Page one text"; page 2 starts with the Context text in Courier-Bold, then "Last text". The New Page break works and the single wrapper is enough. (Method: swap the body of the throwaway Document D-0024, render, restore; the backup is `ZZBACKUP`.) |
+| C6 | Real PDF of Seq A (stored content wrapped between "Page one text" and "Last text", rendered with `renderAsPdfLWC`, read with pdfjs) | Pass after the fixes. Page 1 holds only "Page one text"; page 2 starts with the Context text in Courier-Bold, then "Last text". The New Page break works and the single wrapper is enough. (Method: put the section content into the body of the throwaway Document D-0024, render it in a separate Apex run, download the ContentVersion. D-0024 now holds this test body; the earlier backup record `ZZBACKUP` no longer exists. Rendering a cloned Document failed with "DML currently not allowed", so reuse an existing one.) |
 
 ## Defects
 
