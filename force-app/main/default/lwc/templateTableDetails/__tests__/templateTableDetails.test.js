@@ -440,6 +440,40 @@ describe('c-template-table-details', () => {
         expect(body[9]).toBe('<p>A10</p>');
     });
 
+    // D4: the first click on a cell that has not been used yet only builds its editor and leaves it without focus,
+    // so the user has to click twice before typing works.
+    it('focuses the cell editor on the first click of a cell, once', async () => {
+        gettemplatesectiondata.mockResolvedValue({
+            Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+            DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+            DxCPQ__Section_Details__c: JSON.stringify({
+                rownumber: 2, colnumber: 2, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                fontsize: '12px', fontfamily: 'serif', borderstyle: '', bordercolor: '', newPage: false,
+                sectionInfo: [{ 'data-id': 'Header 1', Content: '<p>H1</p>' }]
+            })
+        });
+        const element = mount({ sectionrecordid: 'a02SECTION' });
+        await flush();
+        element.loadsectionsectionvaluesforedit('a02SECTION');
+        await flush();
+        jest.runOnlyPendingTimers();
+        await flush();
+
+        const cell = element.shadowRoot.querySelector('tbody tr:nth-child(2) lightning-input-rich-text');
+        cell.focus = jest.fn();
+        cell.dispatchEvent(new CustomEvent('click', { bubbles: true }));
+        jest.runAllTimers();
+        await flush();
+        const callsAfterFirstClick = cell.focus.mock.calls.length;
+        expect(callsAfterFirstClick).toBeGreaterThan(0);
+
+        cell.dispatchEvent(new CustomEvent('click', { bubbles: true }));
+        jest.runAllTimers();
+        await flush();
+        expect(cell.focus).toHaveBeenCalledTimes(callsAfterFirstClick);
+    });
+
     // D10: the font family was applied to the table only when the dropdown was changed, so a reopened section
     // showed its saved font in the dropdown but the table (and the next Save) went back to Verdana.
     it('shows the saved font family on the table when the section is reopened', async () => {

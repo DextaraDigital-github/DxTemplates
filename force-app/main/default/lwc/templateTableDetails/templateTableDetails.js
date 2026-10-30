@@ -549,7 +549,23 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     }
 
     /**
-    * Method to fetch the selected table body cell when the user clicks a table body cell. 
+    * The first click on a cell only builds its editor, which then has no focus, so typing did nothing until a
+    * second click (D4). Focus the editor once, after it has rendered; later clicks place the caret as normal.
+    */
+    cellsAlreadyClicked = new WeakSet();
+
+    focusCellOnFirstClick(cell) {
+        if (this.cellsAlreadyClicked.has(cell)) { return; }
+        this.cellsAlreadyClicked.add(cell);
+        // The editor needs a moment to build after the click, so try a few times; focusing twice is harmless.
+        [0, 150, 400].forEach(delay => {
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            setTimeout(() => { if (typeof cell.focus === 'function') { cell.focus(); } }, delay);
+        });
+    }
+
+    /**
+    * Method to fetch the selected table body cell when the user clicks a table body cell.
     */
 
     getSelectedTableRowHandler(event) {
@@ -558,6 +574,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         if (selectedCell) {
             selectedCell.style.overflowY = "visible";
             selectedCell.style.overflowX = "visible";
+            this.focusCellOnFirstClick(selectedCell);
         }
 
         this.selectedTableRow = (event.target.dataset.id == undefined) ? this.selectedTableRow : event.target.dataset.id;
@@ -575,6 +592,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         if (selectedCell) {
             selectedCell.style.overflowY = "visible";
             selectedCell.style.overflowX = "visible";
+            this.focusCellOnFirstClick(selectedCell);
         }
 
         this.selectedHeader = (event.target.dataset.head == undefined) ? this.selectedHeader : event.target.dataset.head;
