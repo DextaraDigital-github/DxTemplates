@@ -1680,6 +1680,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
           if (this.lstofaddedfields[ind].label == this.changedHeaders[j].current) {
               let temp = this.changedHeaders[j].previous;
               this.lstofaddedfields[ind].label = this.changedHeaders[j].previous;
+              this.renameSubtotalLabel(this.changedHeaders[j].current, this.changedHeaders[j].previous);
               this.tableheaders[ind] = '' + temp + '';
           }
       }
@@ -1722,10 +1723,26 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
       for (let i = 0; i < this.lstofaddedfields.length; i++) {
           if (this.lstofaddedfields[i].label == selectedRecordId) {
               this.lstofaddedfields[i].label = this.changedLabel;
+              this.renameSubtotalLabel(selectedRecordId, this.changedLabel);
           }
       }
 
       this.handleActionButtonsVisibility(null);
+  }
+
+  /*
+    The chart finds its column by comparing the chart field with the table headers (both saved as text), so a
+    renamed header has to rename the Sub Total pill, the chart field list and the chosen chart field with it.
+  */
+  renameSubtotalLabel(oldLabel, newLabel) {
+      const position = this.allNumericalFields.indexOf(oldLabel);
+      if (position > -1) {
+          this.allNumericalFields[position] = newLabel;
+          this.SubtotalfieldOptions();
+      }
+      if (this.subtotalFieldValue === oldLabel) {
+          this.subtotalFieldValue = newLabel;
+      }
   }
 
   /* Table Style Controllers - Changes by Rahul */

@@ -394,6 +394,31 @@ describe('c-template-related-objects', () => {
             expect(savedJson().tablelistValues).toEqual(['Name', 'Account.NumberOfEmployees', 'Amount']);
         });
 
+        // The chart finds its column by comparing the saved chart field with the saved table headers, so renaming the
+        // header of the chart field must rename the chart field and the Sub Total pill too.
+        it('keeps the chart pointing at its column when the header of the chart field is renamed', async () => {
+            const element = await openSaved({
+                grouping: 'stagename', groupingCatVals: [{ label: 'Prospecting', value: 'Prospecting' }],
+                subTotal: ['Amount'], displayChart: true, selGraphvalue: 'Amount'
+            });
+            await settle();
+
+            const header = element.shadowRoot.querySelector('lightning-input-rich-text[data-id="Amount"]');
+            header.dispatchEvent(new CustomEvent('change', { detail: { value: '<p>Total Amount</p>' } }));
+            await flush();
+            element.shadowRoot.querySelector('lightning-button-icon[data-okay][data-id="Amount"]').click();
+            await flush();
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saveDocumentTemplateSectionDetails).toHaveBeenCalledTimes(1);
+            const saved = savedJson();
+            expect(saved.tablelistLabels).toContain('Total Amount');
+            expect(saved.selGraphvalue).toBe('Total Amount');
+            const pills = [...element.shadowRoot.querySelectorAll('lightning-pill')].map(p => p.label);
+            expect(pills).toEqual(['Total Amount']);
+        });
+
         // U-R2: the Category list showed raw lowercase API names.
         it('shows field labels in the Category list and keeps the API name as the value', async () => {
             const element = await openSaved({ grouping: 'stagename', groupingCatVals: [{ label: 'Prospecting', value: 'Prospecting' }] });
