@@ -53,7 +53,7 @@ public with sharing class SaveDocumentTemplate {
     @AuraEnabled
     public static Document_Template__c cloneDocumentTemplate(Document_Template__c docTemp, Id docTempId)	{
         try	{
-            List<Document_Template_Section__c> docTempSec = [SELECT ID, Name, IsActive__c, New_Page__c, Section_Content__c, Sequence__c, Section_Details__c, Type__c, Document_Clause__c, ruleId__c, Header_Content__c FROM Document_Template_Section__c WHERE Document_Template__c=:docTempId WITH SECURITY_ENFORCED limit 50000];
+            List<Document_Template_Section__c> docTempSec = [SELECT ID, Name, IsActive__c, New_Page__c, Section_Content__c, Sequence__c, Section_Details__c, Type__c, Document_Clause__c, ruleId__c, Section_Visibility_Rule__c, Header_Content__c FROM Document_Template_Section__c WHERE Document_Template__c=:docTempId WITH SECURITY_ENFORCED limit 50000];
             List<Document_Template__c> docCloneTemplate = [SELECT ID, Name,Version_Number__c,Watermark_Data__c,PDF_Page_Properties__c, FlowId__c, ClassId__c  FROM Document_Template__c WHERE Parent_Template__c= :docTemp.Parent_Template__c WITH SECURITY_ENFORCED order by Version_Number__c desc limit 1];
             
             if(docTemp!=null){
@@ -107,6 +107,9 @@ public with sharing class SaveDocumentTemplate {
                 if(dts.ruleId__c != null) {
                     Id clonedRuleId = RelatedObjectsClass.cloneRulesFromParentTemplate(dts.Id);
                     docSec.ruleId__c = clonedRuleId;
+                }
+                if(dts.Section_Visibility_Rule__c != null) {
+                    docSec.Section_Visibility_Rule__c = RelatedObjectsClass.cloneRulesFromParentTemplate(dts.Id, 'Section Visibility Rule');
                 }
                 docTempSecCloneList.add(docSec);
             }

@@ -150,9 +150,15 @@ global with sharing class RelatedObjectsClass {
     }
     
     public static Id cloneRulesFromParentTemplate(Id parentTempSecId){
+        return cloneRulesFromParentTemplate(parentTempSecId, null);
+    }
+
+    // ruleType 'Section Visibility Rule' copies the visibility rule of the section; anything else copies its data filter rule
+    public static Id cloneRulesFromParentTemplate(Id parentTempSecId, String ruleType){
         try{
-            
-            Id docRule = [Select ruleId__c from document_template_section__c where id=:parentTempSecId WITH SECURITY_ENFORCED limit 1].ruleId__c;
+
+            Document_Template_Section__c parentSection = [Select ruleId__c, Section_Visibility_Rule__c from document_template_section__c where id=:parentTempSecId WITH SECURITY_ENFORCED limit 1];
+            Id docRule = ruleType == 'Section Visibility Rule' ? parentSection.Section_Visibility_Rule__c : parentSection.ruleId__c;
             Rule__c tempRule = [Select Id, Rule_Expression__c,Rule_Description__c, (Select Condition_Field__c,ConditionIndex__c,DataType__c,Evaluation_Object__c,Value__c,Name,Operator__c from Rule_Conditions__r) from rule__c where Id=:docRule WITH SECURITY_ENFORCED];
             List<Map<String,Object>> condsArr = new List<Map<String,Object>> {};
             for(Rule_Condition__c item : tempRule.Rule_Conditions__r) {
