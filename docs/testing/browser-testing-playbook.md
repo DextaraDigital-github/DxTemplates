@@ -134,3 +134,11 @@ Jest facts: runner `@salesforce/sfdx-lwc-jest` 1.4.1 (Jest 27). It prints "Inval
 ## 9. Current state of the test org (2026-10-29)
 
 Alias `dxtemplates-scratch-30d`, user `test-theng94s5l6s@example.com`, URL `https://energy-speed-4475-dev-ed.scratch.lightning.force.com`. Sample templates plus two throwaway templates created in testing: `ZZ Smoke Test` (activated once, now read-only) and `ZZ Clip Test` (editable). Newsletter is active and has Context and Table sections. The `DXTemplates PDF Generator` component is on the Account and Opportunity record pages.
+
+## Added 2026-10-31
+
+- A "first click is ignored" on Save was a stale click position: the Chrome window had become taller (854 to 910 px) and the Save button was below the visible area, so the click hit the chart. Take a screenshot before clicking after any pause, and install a click logger (`lightning-button` with `label === 'Save'`, capture listener) before concluding the app drops clicks.
+- `browser_batch` runs on the current tab only (omit `tabId`; items are `{"name":"computer","input":{...}}`); single calls accept `tabId`.
+- A saved Related Objects section needs 5 to 15 s to open completely on a cold load; wait for the category box before acting.
+- When the corporate DNS cannot resolve the scratch org host from PowerShell or curl (browser still works), read an Attachment in an anonymous Apex run: `EncodingUtil.base64Encode(body)`, print it in 12,000 character `System.debug` chunks, rebuild the file with `[Convert]::FromBase64String`, then run `readpdf.mjs`.
+- A table header in the Related Objects editor shows its tick and cross buttons only after a second click on it.
