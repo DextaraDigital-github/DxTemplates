@@ -30,6 +30,7 @@ import selectedLangMethod from '@salesforce/apex/LanguageTranslatorClass.selecte
 import currectUserLang from '@salesforce/apex/LanguageTranslatorClass.currectUserLang';
 
 import { savingPageProperties , updatePropertiesFromJSON} from "./templateDesignerCMPUtils";
+import { defaultPageProperties } from "./templateDesignerCMPDefaults";
 
 
 export default class TemplateDesignerCMP extends NavigationMixin(LightningElement) {
@@ -821,6 +822,8 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
       this.optionsList = [];
       this.isLoaded2 = true;
       this.firstsectionrecord = '';
+      // Page properties of the template shown before must not be offered for this one while it loads (or when it has no sections).
+      this.jsonStr = '';
       // Only the answer to the latest request may fill the list: when another template is selected while this one is
       // still loading, the late answer would otherwise add its sections to the new template's list.
       const requestId = ++this.sectionsRequestId;
@@ -832,7 +835,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
           //console.log('getAllDocumentTemplateSections result --> ', result);
           if (result != null) {
             if(result.length > 0 ){
-              this.jsonStr = result[0].DxCPQ__Document_Template__r.DxCPQ__PDF_Page_Properties__c !== '' || result[0].DxCPQ__Document_Template__r.DxCPQ__PDF_Page_Properties__c !== null? result[0].DxCPQ__Document_Template__r.DxCPQ__PDF_Page_Properties__c : '';
+              this.jsonStr = result[0].DxCPQ__Document_Template__r.DxCPQ__PDF_Page_Properties__c || '';
             }
             this.sectionsData = result;
             this.isTemplateSectionsFetched = true;
@@ -2585,7 +2588,6 @@ createTranslatedRecords() {
     this.showDeleteTemplate = false;
     this.editTemplate = false;
     this.showwatermarkbtn = false;
-    this.jsonStr = this.jsonStr != null ? this.jsonStr : this.sectionsData[0].DxCPQ__Document_Template__r.DxCPQ__PDF_Page_Properties__c;
     updatePropertiesFromJSON(this, this.jsonStr);
     this.showPageProperties = true;
     this.template.querySelector('c-modal').show();
@@ -2594,13 +2596,7 @@ createTranslatedRecords() {
   // Page Properties
     @track pageType = 'A4';
     @track pageOrientation = 'Portrait';
-    @track pageMargins = {
-        leftMargin: { value: 10, unit: 'px' },
-        rightMargin: { value: 10, unit: 'px' },
-        topMargin: { value: 10, unit: 'px' },
-        bottomMargin: { value: 10, unit: 'px' },
-        lineheight: {value: 1.2, unit: 'px' }
-    };
+    @track pageMargins = defaultPageProperties().pageMargins;
 
     // Header Properties
     @track headerProperties = {
@@ -2620,28 +2616,7 @@ createTranslatedRecords() {
     };
 
     // Footer Properties
-    @track footerProperties = {
-        height: { value: 80, unit: 'px' },
-        margins: {
-            leftMargin: { value: 10, unit: 'px' },
-            rightMargin: { value: 10, unit: 'px' },
-            topMargin: { value: 10, unit: 'px' },
-            bottomMargin: { value: 10, unit: 'px' },
-            lineHeight: {value: 1.2}
-        },
-        paddings:{
-          topPadding:{value: 10, unit: 'px'},
-          bottomPadding:{value: 10, unit: 'px'},
-          leftPadding:{value: 10, unit: 'px'},
-          rightPadding:{value: 10, unit: 'px'}
-       },
-        lineHeight: { value: 15, unit: 'px' },
-        borderColor:  { value: '#000000' },
-        // borderRadius: { value: 0, unit: 'px' },
-        borderOpacity: 1,
-        borderWeight: { value: 1, unit: 'px' },
-        separateBorders: []
-    };
+    @track footerProperties = defaultPageProperties().footerProperties;
 
     // Options
     get pageTypeOptions() {
@@ -2730,51 +2705,9 @@ createTranslatedRecords() {
       console.log('footerProperties --> ', this.footerProperties);
   }
 
-    @track firstHeaderProperties = {
-        height: { value: '80', unit: 'px' },
-        margins: { 
-            leftMargin: { value: '10', unit: 'px' }, 
-            rightMargin: { value: '10', unit: 'px' }, 
-            topMargin: { value: '10', unit: 'px' }, 
-            bottomMargin: { value: '10', unit: 'px' } 
-        },
-        paddings:{
-           topPadding:{value: 10, unit: 'px'},
-           bottomPadding:{value: 10, unit: 'px'},
-           leftPadding:{value: 10, unit: 'px'},
-           rightPadding:{value: 10, unit: 'px'}
-        },
-        lineHeight: { value: '1' },
-        borderColor:  { value: '#000000' },
-        bgColor:  { value: '#FFFFFF' },
-        // borderRadius: { value: '0', unit: 'px' },
-        borderOpacity: '1',
-        borderWeight: { value: '1', unit: 'px' },
-        separateBorders: []
-    };
+    @track firstHeaderProperties = defaultPageProperties().firstHeaderProperties;
 
-    @track secondHeaderProperties = {
-        height: { value: '80', unit: 'px' },
-        margins: { 
-            leftMargin: { value: '10', unit: 'px' }, 
-            rightMargin: { value: '10', unit: 'px' }, 
-            topMargin: { value: '10', unit: 'px' }, 
-            bottomMargin: { value: '10', unit: 'px' } 
-        },
-        paddings:{
-          topPadding:{value: 10, unit: 'px'},
-          bottomPadding:{value: 10, unit: 'px'},
-          leftPadding:{value: 10, unit: 'px'},
-          rightPadding:{value: 10, unit: 'px'}
-       },
-        lineHeight: { value: '1', unit: 'px' },
-        borderColor:  { value: '#000000' },
-        bgColor:  { value: '#FFFFFF' },
-        // borderRadius: { value: '0', unit: 'px' },
-        borderOpacity: '1',
-        borderWeight: { value: '1', unit: 'px' },
-        separateBorders: []
-    };
+    @track secondHeaderProperties = defaultPageProperties().secondHeaderProperties;
 
     // unitOptions = [
     //   { label: 'px', value: 'px' },

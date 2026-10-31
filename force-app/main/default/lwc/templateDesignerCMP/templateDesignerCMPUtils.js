@@ -1,4 +1,5 @@
 import saveTemplateData from '@salesforce/apex/SaveDocumentTemplatesection.saveTemplateData';
+import { defaultPageProperties } from './templateDesignerCMPDefaults';
 
 
 function sanitizeCss(cssString) {
@@ -275,7 +276,7 @@ export function savingPageProperties(thisObj) {
             padding-left: ${transformedFooterProperties.paddingleft};
             padding-right: ${transformedFooterProperties.paddingright};
             padding-top: ${transformedFooterProperties.paddingtop};
-            maring-left: ${transformedFooterProperties.marginleft};
+            margin-left: ${transformedFooterProperties.marginleft};
             margin-right: ${transformedFooterProperties.marginright};
             margin-top: ${transformedFooterProperties.margintop};
             margin-bottom: ${transformedFooterProperties.marginbottom};
@@ -290,7 +291,7 @@ export function savingPageProperties(thisObj) {
             padding-left: ${transformedFooterProperties.paddingleft};
             padding-right: ${transformedFooterProperties.paddingright};
             padding-top: ${transformedFooterProperties.paddingtop};
-            maring-left: ${transformedFooterProperties.marginleft};
+            margin-left: ${transformedFooterProperties.marginleft};
             margin-right: ${transformedFooterProperties.marginright};
             margin-top: ${transformedFooterProperties.margintop};
             margin-bottom: ${transformedFooterProperties.marginbottom};
@@ -305,7 +306,7 @@ export function savingPageProperties(thisObj) {
             padding-left: ${transformedFooterProperties.paddingleft};
             padding-right: ${transformedFooterProperties.paddingright};
             padding-top: ${transformedFooterProperties.paddingtop};
-            maring-left: ${transformedFooterProperties.marginleft};
+            margin-left: ${transformedFooterProperties.marginleft};
             margin-right: ${transformedFooterProperties.marginright};
             margin-top: ${transformedFooterProperties.margintop};
             margin-bottom: ${transformedFooterProperties.marginbottom};
@@ -395,9 +396,10 @@ export function updatePropertiesFromJSON(thisObj, jsonString) {
         if (typeof thisObj !== 'undefined') {
             tempThisObj = thisObj;
         }
+        // Start from the defaults, so a template without (readable) saved properties does not show the values of the template opened before.
+        Object.assign(tempThisObj, defaultPageProperties());
         const data = JSON.parse(jsonString);
         const keyMap = {
-            borderTop: 'borderTop',
             borderWeight: 'borderWeight',
             borderOpacity: 'borderOpacity',
             borderColor: 'borderColor',
@@ -472,9 +474,9 @@ export function updatePropertiesFromJSON(thisObj, jsonString) {
     
 
     function splitValueAndUnit(valueWithUnit) {
-        const match = valueWithUnit.match(/^(\d+)(.*)$/);
+        const match = valueWithUnit.match(/^(-?\d+(?:\.\d+)?)\s*(.*)$/);
         return {
-            value: match ? match[1] : valueWithUnit,
+            value: match ? parseFloat(match[1]) : valueWithUnit,
             unit: match ? match[2] : ''
         };
     }
