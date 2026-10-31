@@ -181,12 +181,14 @@ describe('c-template-content-details', () => {
     const savedContent = () => saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails.DxCPQ__Section_Content__c;
 
     // C-D1 (same defect as Table D11): the PDF engine prints `courier` (lowercase) in Times; only a generic name
-    // such as monospace gives Courier.
-    it('offers a Courier font that the PDF can render', async () => {
+    // such as monospace gives Courier. The editor itself only accepts its own font names and silently ignores
+    // "courier, monospace" (measured in the browser, Header cycle), so the dropdown must give it `courier` and the
+    // stack is written when the section is saved (see the next test).
+    it('gives the editor the font name it accepts for Courier', async () => {
         const element = await openSavedSection('<p>Hi</p>');
 
         const courier = [...element.shadowRoot.querySelectorAll('select[name="font"] option')].find(o => o.textContent === 'Courier');
-        expect(courier.value).toBe('courier, monospace');
+        expect(courier.value).toBe('courier');
     });
 
     it('upgrades the old lowercase courier font to a stack the PDF can render when the section is saved', async () => {

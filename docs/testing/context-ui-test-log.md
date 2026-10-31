@@ -48,3 +48,7 @@ Merge field insert; image insert; the visibility filter dialog; Delete; New sect
 | # | Defect | Status |
 |---|---|---|
 | C-D7 | (Found on the Clause screen, same component.) Every save ended with `this.newpage = false` while the New Page checkbox stayed ticked, so a second Save or Update without reopening the section saved it without New Page and without the page-break wrapper. | FIXED, Jest and browser-verified; details in `docs/testing/clause-ui-test-log.md`. |
+
+## Correction found during the Header cycle (2026-10-31)
+
+C-D1 was fixed wrongly for the dropdown: I changed the Courier option's value to `courier, monospace`, but the rich text editor only accepts its own font names and silently ignores any other value, so choosing Courier in the Context editor did nothing from that fix until now. Re-fixed: the dropdown gives the editor `courier`, and `upgradeEditorFonts` (in `dxPdfFonts`) writes `courier, monospace` (and `verdana` as `Verdana, sans-serif`) when the section is saved. The Jest test that asserted the stack as the dropdown value was wrong and has been replaced. Details and the measurements: `docs/testing/header-ui-test-log.md` (H-D2). The Context editor itself has not been re-checked in the browser after this correction.

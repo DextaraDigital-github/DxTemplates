@@ -10,6 +10,7 @@ import getSObjectListFiltering from '@salesforce/apex/RelatedObjectsClass.getSOb
 import createRuleCondition from '@salesforce/apex/RelatedObjectsClass.createRuleCondition';
 import getConditions from '@salesforce/apex/RelatedObjectsClass.getExistingConditions';
 import { getDomainUrl } from 'c/dxApexCache';
+import { upgradeEditorFonts } from 'c/dxPdfFonts';
 import deleteContentVersions from '@salesforce/apex/ScreenshotController.deleteContentVersions'; 
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
@@ -426,7 +427,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
 
   // The PDF engine prints a lone lowercase `courier` in Times; a stack ending in a generic name gives Courier.
   upgradeLegacyFonts(str) {
-    return str.replace(/font-family:\s*courier\s*;/gi, 'font-family: courier, monospace;');
+    return upgradeEditorFonts(str);
   }
 
   // A New Page section is stored inside a page-break div and reopens with that div in the editor, so take the
@@ -829,7 +830,8 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
         { label: 'Times New Roman', value: 'serif' },
         { label: 'Arial', value: 'sans-serif' },
         { label: 'Serif', value: 'serif' },
-        { label: 'Courier', value: 'courier, monospace' },
+        // The editor only accepts its own font names; the PDF-safe stack is written when the section is saved (upgradeEditorFonts).
+        { label: 'Courier', value: 'courier' },
     ];
   }
 

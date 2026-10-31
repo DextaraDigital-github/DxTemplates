@@ -331,7 +331,10 @@ export default class TemplateHeader extends NavigationMixin(LightningElement) {
   handlesectionsave(event) {
     this.Recorddetailsnew.Name = this.sectiontype;
     var currecid = this.sectionrecordid;
-    this.headerMap = this.headerSectionsMap.concat(this.headerFirstSectionsMap);
+    // The PDF shows a separate first-page header whenever sectionsFirstCount is saved, so the first-page header is only
+    // saved while "Unique First Page Header" is ticked (its text stays in memory in case the box is ticked again).
+    const firstPageHeaderOn = this.showfirstpageheader;
+    this.headerMap = this.headerSectionsMap.concat(firstPageHeaderOn ? this.headerFirstSectionsMap : []);
     if (this.headerMap.length > 0) {
       this.headerMap.forEach((loopvar) => {
 
@@ -353,7 +356,7 @@ export default class TemplateHeader extends NavigationMixin(LightningElement) {
       console.log('this.headerMap after adding styles ---> ', this.headerMap);
       var obj = {};
       obj.sectionsCount = this.columnvalue;
-      obj.sectionsFirstCount = this.columnfirstvalue;
+      obj.sectionsFirstCount = firstPageHeaderOn ? this.columnfirstvalue : null;
       obj.sectionsContent = this.headerMap;
       this.Recorddetailsnew.DxCPQ__Section_Content__c = JSON.stringify(obj);
     }

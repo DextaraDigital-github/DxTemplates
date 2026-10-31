@@ -116,10 +116,13 @@
                 </apex:outputText>
                 <apex:outputText rendered="{!if(headerfirstsectionsCount== 1,true,false)}">
                     @top-left { content:element(first_header_left); width:100%;}
+                    @top-center { content:none; }
+                    @top-right { content:none; }
                 </apex:outputText>
                 <apex:outputText rendered="{!if(headerfirstsectionsCount== 2,true,false)}">
                     @top-left { content:element(first_header_left);width:50%;}
                     @top-right { content:element(first_header_center);width:50%;}
+                    @top-center { content:none; }
                 </apex:outputText>
                 <apex:outputText rendered="{!if(headerfirstsectionsCount== 3,true,false)}">
                     @top-left { content:element(first_header_left);width:33%;}
@@ -229,10 +232,13 @@
                     
                     <apex:outputText rendered="{!if(headerfirstsectionsCount== 1,true,false)}">
                         @top-left { content:element(first_header_left); width:100%;}
+                        @top-center { content:none; }
+                        @top-right { content:none; }
                     </apex:outputText>
                     <apex:outputText rendered="{!if(headerfirstsectionsCount== 2,true,false)}">
                         @top-left { content:element(first_header_left);width:50%;}
                         @top-right { content:element(first_header_center);width:50%;}
+                        @top-center { content:none; }
                     </apex:outputText>
                     <apex:outputText rendered="{!if(headerfirstsectionsCount== 3,true,false)}">
                         @top-left { content:element(first_header_left);}
@@ -329,10 +335,13 @@
                     
                     <apex:outputText rendered="{!if(headerfirstsectionsCount== 1,true,false)}">
                         @top-left { content:element(first_header_left); width:100%;}
+                        @top-center { content:none; }
+                        @top-right { content:none; }
                     </apex:outputText>
                     <apex:outputText rendered="{!if(headerfirstsectionsCount== 2,true,false)}">
                         @top-left { content:element(first_header_left);width:50%;}
                         @top-right { content:element(first_header_center);width:50%;}
+                        @top-center { content:none; }
                     </apex:outputText>
                     <apex:outputText rendered="{!if(headerfirstsectionsCount== 3,true,false)}">
                         @top-left { content:element(first_header_left);}
@@ -428,10 +437,13 @@
                         
                         <apex:outputText rendered="{!if(headerfirstsectionsCount== 1,true,false)}">
                             @top-left { content:element(first_header_left); width:100%;}
+                            @top-center { content:none; }
+                            @top-right { content:none; }
                         </apex:outputText>
                         <apex:outputText rendered="{!if(headerfirstsectionsCount== 2,true,false)}">
                             @top-left { content:element(first_header_left);width:50%;}
                             @top-right { content:element(first_header_center);width:50%;}
+                            @top-center { content:none; }
                         </apex:outputText>
                         <apex:outputText rendered="{!if(headerfirstsectionsCount== 3,true,false)}">
                             @top-left { content:element(first_header_left);}

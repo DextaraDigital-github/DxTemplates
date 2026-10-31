@@ -2,6 +2,7 @@ import { LightningElement, wire, api, track } from 'lwc';
 import getContentVersions from '@salesforce/apex/FooterClass.getContentVersions';
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
 import { copyText } from 'c/dxClipboard';
+import { upgradeEditorFonts } from 'c/dxPdfFonts';
 
 export default class TemplateHeaderType extends LightningElement {
     imageUrls = [];
@@ -58,8 +59,14 @@ export default class TemplateHeaderType extends LightningElement {
 
     handleRichTextArea(event) {
         this.richtextVal = event.detail.value;
-        var rtdetails = { value: this.richtextVal, indexvar: this.indexvar, key: (new Date()).getTime() + ":" + this.indexvar };    
-        this.richtextVal = this.handleWhiteSpacesinText(this.richtextVal);
+        this.notifyHeader();
+    }
+
+    // Tells the header what this column now says. Every change of the text goes through here (typing, merge field,
+    // picture), so the header always has the text that will be saved; two spaces in a row are sent as &nbsp; because the
+    // PDF would otherwise collapse them.
+    notifyHeader() {
+        var rtdetails = { value: upgradeEditorFonts(this.handleWhiteSpacesinText(this.richtextVal)), indexvar: this.indexvar, key: (new Date()).getTime() + ":" + this.indexvar };
         var firecustomevent = new CustomEvent('saverichtextheader', { detail: rtdetails });
         this.dispatchEvent(firecustomevent);
     }
@@ -119,6 +126,7 @@ export default class TemplateHeaderType extends LightningElement {
 
             this.richtextVal += this.mergefieldname;
             this.selectedMergefields.push(this.mergefieldname);
+            this.notifyHeader();
         }
         this.template.querySelector('c-modal').hide();
         this.showmergefield = false;
@@ -145,6 +153,7 @@ export default class TemplateHeaderType extends LightningElement {
         this.imagebuttonlabel = 'Change Image';
         this.showImage = true;
         this.richtextVal = this.richtextVal + '<img src="' + this.selectedimageurl + '"/>';
+        this.notifyHeader();
         this.template.querySelector('c-modal').hide();
         this.isModalOpen = false;
     }
@@ -195,6 +204,7 @@ export default class TemplateHeaderType extends LightningElement {
             { label: 'Times New Roman', value: 'serif' },
             { label: 'Arial', value: 'sans-serif' },
             { label: 'serif', value: 'serif' },
+            // The editor only accepts its own font names; the PDF-safe stack is written when the text is sent (notifyHeader).
             { label: 'Courier', value: 'courier' },
         ];
     }
