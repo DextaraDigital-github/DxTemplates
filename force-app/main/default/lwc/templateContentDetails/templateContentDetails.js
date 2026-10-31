@@ -180,8 +180,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
         console.log('error while retrieving domain base url ---> ' , error);
       })
     this.handleRuleWrapperMaking();
-   // this.whereCondition = `DxCPQ__Document_Template__r.DxCPQ__Related_To_Type__c = '${this.selectedObjectName}' AND DxCPQ__Type__c = 'Context'`;
-    this.whereClause = this.whereCondition;
+    // The clause lookup keeps the filter the class starts with (active clauses only); an old line here replaced it with undefined.
     console.log('sectionrecordid',this.sectionrecordid);
     this.template.addEventListener("closemodal", (evt) => {
       console.log("Notification event", evt);
@@ -369,6 +368,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
   /*filter*/
   updateItemEventHandler(event) {
     this.selectedClauseId = undefined;
+    this.clauseId = '';
     this.richtextVal = '';
     this.updatedRichTextVal = this.richtextVal;
     this.Recorddetailsnew.Name = '';
@@ -412,6 +412,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
   }
 
   handleclauseremoval() {
+    this.clauseId = '';
     this.richtextVal = '';
     this.updatedRichTextVal = this.richtextVal;
     this.Recorddetailsnew.Name = '';
@@ -522,7 +523,6 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
       });
       this.dispatchEvent(Errormsg);
     }
-    this.newpage = false;
   }
   updatingContentVersions(){
      return new Promise((resolve, reject) => {

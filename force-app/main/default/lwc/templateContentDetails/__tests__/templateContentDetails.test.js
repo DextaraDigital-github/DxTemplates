@@ -242,6 +242,139 @@ describe('c-template-content-details', () => {
         expect(savedContent()).toBe('<div style="color: red;"><p>Hi</p></div>');
     });
 
+    describe('Clause section', () => {
+        const PAYMENT = { recordId: 'a00CLAUSE1', recordName: 'ZZ Payment Terms', recordObject: { DxCPQ__Body__c: '<p><b>Payment Terms</b></p>' } };
+        const lookup = element => element.shadowRoot.querySelector('c-multi-lookup-component');
+        const richText = element => element.shadowRoot.querySelector('lightning-input-rich-text');
+        const pick = async (element, clause) => {
+            lookup(element).dispatchEvent(new CustomEvent('singlepill', { detail: { selectedRecord: clause } }));
+            await flush();
+        };
+        const mountClause = (props = {}) => mount({ showclausescreen: true, sectiontype: 'Clause', sectionrecordid: 'ClauseNotSaved', ...props });
+        const saved = () => saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails;
+
+        // The component starts with the filter " IsActive__c = true" for the lookup, and connectedCallback replaced it
+        // with an undefined value, so the lookup offered inactive clauses too.
+        it('offers only active clauses in the lookup', async () => {
+            const element = mountClause();
+            await flush();
+
+            expect(lookup(element).whereClause).toBe(' IsActive__c = true');
+        });
+
+        it('fills the name and the text from the chosen clause', async () => {
+            const element = mountClause();
+            await flush();
+
+            await pick(element, PAYMENT);
+
+            expect(nameInput(element).value).toBe('ZZ Payment Terms');
+            expect(richText(element).value).toBe('<p><b>Payment Terms</b></p>');
+        });
+
+        it('saves the chosen clause with the section, keeping the clause id as the text the server expects', async () => {
+            const element = mountClause();
+            await flush();
+            await pick(element, PAYMENT);
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saved()).toMatchObject({
+                Name: 'ZZ Payment Terms',
+                DxCPQ__Type__c: 'Clause',
+                DxCPQ__Document_Clause__c: '"a00CLAUSE1"',
+                DxCPQ__Section_Content__c: '<p><b>Payment Terms</b></p>'
+            });
+        });
+
+        it('refuses to save a Clause section without a clause, and says so', async () => {
+            const element = mountClause();
+            const seen = listen(element, ['lightning__showtoast']);
+            await flush();
+            nameInput(element).dispatchEvent(new CustomEvent('change', { detail: { value: 'My clause' } }));
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saveDocumentTemplateSectionDetails).not.toHaveBeenCalled();
+            expect(seen[0].detail).toMatchObject({ title: 'Error', message: 'Please select a pre-defined Clause to save this section.' });
+        });
+
+        it('clears the name and the text when the clause is removed from the lookup', async () => {
+            const element = mountClause();
+            await flush();
+            await pick(element, PAYMENT);
+
+            lookup(element).dispatchEvent(new CustomEvent('removepill'));
+            await flush();
+
+            expect(nameInput(element).value).toBe('');
+            expect(richText(element).value).toBe('');
+        });
+
+        // Removing the pill cleared the name and the text but not the clause id that Save checks, so a section with a
+        // typed name and no text was saved against the clause that had just been removed.
+        it('does not save against a clause that was removed from the lookup', async () => {
+            const element = mountClause();
+            const seen = listen(element, ['lightning__showtoast']);
+            await flush();
+            await pick(element, PAYMENT);
+            lookup(element).dispatchEvent(new CustomEvent('removepill'));
+            await flush();
+            nameInput(element).dispatchEvent(new CustomEvent('change', { detail: { value: 'Typed after removal' } }));
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saveDocumentTemplateSectionDetails).not.toHaveBeenCalled();
+            expect(seen[0].detail).toMatchObject({ title: 'Error', message: 'Please select a pre-defined Clause to save this section.' });
+        });
+
+        it('keeps the clause and the edited text when a saved Clause section is opened and saved again', async () => {
+            gettemplatesectiondata.mockResolvedValue({
+                ...SECTION, Name: 'ZZ Payment Terms', DxCPQ__Type__c: 'Clause',
+                DxCPQ__Section_Content__c: '<p>Edited by hand</p>',
+                DxCPQ__Document_Clause__c: 'a00CLAUSE1', DxCPQ__Document_Clause__r: { Name: 'ZZ Payment Terms' }
+            });
+            const element = mountClause();
+            await flush();
+            element.loadsectionsectionvaluesforedit('a02SECTION');
+            await flush();
+            jest.runAllTimers();
+            await flush();
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saved()).toMatchObject({
+                Id: 'a02SECTION',
+                DxCPQ__Document_Clause__c: '"a00CLAUSE1"',
+                DxCPQ__Section_Content__c: '<p>Edited by hand</p>'
+            });
+        });
+
+        // Update was pressed after the first save, `newpage` had been reset to false, and the second save removed the
+        // page break from a section that had New Page ticked.
+        it('keeps New Page when a section is saved twice without being reopened', async () => {
+            const element = mountClause();
+            await flush();
+            await pick(element, PAYMENT);
+            const checkbox = element.shadowRoot.querySelector('lightning-input[data-id="newpage"]');
+            checkbox.dispatchEvent(new CustomEvent('change', { detail: { checked: true } }));
+
+            button(element, 'Save').click();
+            await flush();
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saveDocumentTemplateSectionDetails).toHaveBeenCalledTimes(2);
+            const second = saveDocumentTemplateSectionDetails.mock.calls[1][0].Recorddetails;
+            expect(second.DxCPQ__New_Page__c).toBe(true);
+            expect(second.DxCPQ__Section_Content__c).toBe('<div style="page-break-before : always;"><p><b>Payment Terms</b></p></div>');
+        });
+    });
+
     it('does not call Apex when the section has no name, and shows an error toast', async () => {
         const element = mount();
         const seen = listen(element, ['savesectiondata', 'lightning__showtoast']);
