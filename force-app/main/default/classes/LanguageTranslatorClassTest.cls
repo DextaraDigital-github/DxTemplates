@@ -181,6 +181,30 @@ public class LanguageTranslatorClassTest {
         System.assertEquals('Test Field 3', newTranslations[0].DxCPQ__FieldValue__c);
     }
     
+    // A row that Salesforce refuses (name longer than 80 characters) must not be reported as saved; the other rows are still saved.
+    @isTest
+    static void testCreateUpdateMethodReportsARefusedRow() {
+        Id templateId = [SELECT Id FROM DxCPQ__Document_Template__c WHERE Name = 'Test Template 1' LIMIT 1].Id;
+        String tooLong = 'x'.repeat(100);
+        String json = '[{"Id":"1","Name":"Fine","FieldValue":"Fine","TranslatedValue":"Bien"},{"Id":"2","Name":"' + tooLong + '","FieldValue":"x","TranslatedValue":"y"}]';
+
+        Test.startTest();
+        Boolean result = LanguageTranslatorClass.createUpdateMethod(json, 'fr', templateId);
+        Test.stopTest();
+
+        System.assertEquals(false, result);
+        System.assertEquals(1, [SELECT COUNT() FROM DxCPQ__Translator__c WHERE DxCPQ__Language__c = 'fr' AND Name = 'Fine']);
+    }
+
+    @isTest
+    static void testCreateUpdateMethodAcceptsARowWithoutId() {
+        Id templateId = [SELECT Id FROM DxCPQ__Document_Template__c WHERE Name = 'Test Template 1' LIMIT 1].Id;
+
+        Boolean result = LanguageTranslatorClass.createUpdateMethod('[{"Name":"NoId","FieldValue":"NoId","TranslatedValue":"SansId"}]', 'fr', templateId);
+
+        System.assertEquals(true, result);
+    }
+
     @isTest
     static void testDeleteMethod() {
         DxCPQ__Translator__c transRecToDelete = [SELECT Id FROM DxCPQ__Translator__c WHERE DxCPQ__Language__c = 'en_US' LIMIT 1];

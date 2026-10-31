@@ -15,6 +15,19 @@
  */
 public with sharing class MergeFieldsClass {
     /**
+     * @description    The language key of the translations to apply, as stored in Translator__c.Language__c (a user
+     *                 language key such as en_US or fr). The language of the record is used as it is; the key was
+     *                 split at the underscore before, which turned en_US into US and so never matched a translation.
+     *                 Without a language on the record the translations of en_US apply.
+     * @param          documentLanguage  value of the language field of the record, or null
+     * @return         String language key
+     */
+    @TestVisible
+    private static String resolveLocale(String documentLanguage) {
+        return String.isBlank(documentLanguage) ? 'en_US' : documentLanguage.trim();
+    }
+
+    /**
      * @description    Merges fields from the specified record into the selected template contents
      * @param          selectedTemplateContents  List of Document_Template_Section__c representing selected template contents
      * @param          recordId                  Id of the record from which fields will be merged
@@ -31,21 +44,7 @@ public with sharing class MergeFieldsClass {
             Map<String, String> nameTransValueMap = new map<String, String>();
             //getting Document Language from the Custom Metadata
             String userLanguage = LanguageTranslatorClass.getLanguageSelected(recordId);
-            String language = '';
-            String locale = '';
-            if(userLanguage != null){
-                Integer underscoreIndex = userLanguage.indexOf('_');
-                if (underscoreIndex != -1) {
-                    language = userLanguage.substring(0, underscoreIndex);
-                    locale = userLanguage.substring(underscoreIndex + 1);
-                }
-            }
-            else{
-                locale = [SELECT LanguageLocaleKey FROM User WHERE Id = : UserInfo.getUserId() WITH SECURITY_ENFORCED].LanguageLocaleKey;
-                if(locale != null){
-                    locale = 'en_US';
-                }
-            }
+            String locale = resolveLocale(userLanguage);
             
             List<Translator__c> translatorList = [select id, DocumentTemplate__c, Name, DxCPQ__FieldValue__c, Translated_Value__c, Language__c  from Translator__c where Language__c =:locale and DocumentTemplate__c=:docTemplate WITH SECURITY_ENFORCED];
             for(Translator__c transRec: translatorList){

@@ -91,7 +91,7 @@ public with sharing class LanguageTranslatorClass {
             List<DxCPQ__Translator__c> upsertTransLanguages = new List<DxCPQ__Translator__c>();
             for(wrapperData wrapItem : wrapdata){
                 DxCPQ__Translator__c transRec = new DxCPQ__Translator__c();
-                if(Pattern.matches(regex, wrapItem.Id)){
+                if(wrapItem.Id != null && Pattern.matches(regex, wrapItem.Id)){
                     transRec.Id = wrapItem.Id;
                 }
                 transRec.Name = wrapItem.Name;
@@ -103,7 +103,14 @@ public with sharing class LanguageTranslatorClass {
             }
             if(upsertTransLanguages.size()>0){
                 List<Database.upsertResult> uResults = Database.upsert(upsertTransLanguages,false);
+                // Rows are saved one by one (a refused row does not stop the others), so the caller is only told "true" when every row was saved.
                 upsertSuccess = true;
+                for(Database.upsertResult uResult : uResults){
+                    if(!uResult.isSuccess()){
+                        upsertSuccess = false;
+                        LogHandler.createLog((Id) null,'LanguageTranslatorClass Error','createUpdateMethod',String.valueOf(uResult.getErrors()),'Exception');
+                    }
+                }
             }
         } catch(exception ex){
             LogHandler.createLog((Id) null,'LanguageTranslatorClass Error',ex.getLineNumber()+ex.getStackTraceString()+ex.getCause(),ex.getMessage(),'Exception');

@@ -80,12 +80,6 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
         this.uniqueIdentifierVal = this.uniqueIdentifierVal + 1;
         return this.uniqueIdentifierVal;
   }
-  @track dataArray = [{
-              'Name': '',
-              'DxCPQ__FieldValue__c': '',
-              'DxCPQ__Translated_Value__c': '',
-              'Id': this.uniqueIdentifier
-          }]; 
   @track extractedWords = [];
   transRecordNameArray = [];
   translateEnabled = false;
@@ -2053,67 +2047,33 @@ this.resetImageWatermarkFields();
   //   console.log('this.extractedWords after extractwords ----> ', this.extractedWords);
   // }
 
+  // A row of the translation table. A saved row has its record Id; a new one gets a number so that it can be found again.
+  newTranslationRow() {
+    return { 'Name': '', 'DxCPQ__FieldValue__c': '', 'DxCPQ__Translated_Value__c': '', 'Id': this.uniqueIdentifier };
+  }
+
+  // `originalData` is the full list; `translatedRecords` is what the table shows (all of it, or what the search keeps).
+  // They hold separate row objects, so every change is written to both.
+  showTranslationRows(rows) {
+    this.originalData = rows.map(row => ({ ...row }));
+    this.translatedRecords = rows.map(row => ({ ...row }));
+  }
+
   transRecordsRetrive(){
-    selectedLangMethod({language : this.selectedLanguage, extractedWords : JSON.stringify(this.extractedWords), docTempId : this.recordId })
+    selectedLangMethod({ language : this.selectedLanguage, docTempId : this.recordId })
           .then(result => {
-          if (result && result.length > 0) {
-            this.translatedRecords = [];
-            this.transRecordNameArray = [];
-              result.forEach(record => {
-                  // Iterate over each record and push it into translatedRecords array
-                  this.transRecordNameArray.push(record.Name);
-                  this.translatedRecords.push({
-                      'Name': record.Name,
-                      'DxCPQ__FieldValue__c': record.DxCPQ__FieldValue__c,
-                      'DxCPQ__Translated_Value__c': record.DxCPQ__Translated_Value__c,
-                      'Id': record.Id
-                  });
-              });
-              // if(this.transRecordNameArray.length != this.extractedWords.length){
-              //   this.extractedWords.forEach((extraxtElem) => {
-              //   if(!this.transRecordNameArray.includes(extraxtElem)){
-              //     this.translatedRecords.push({
-              //       'Name': extraxtElem,
-              //       'DxCPQ__FieldValue__c': '',
-              //       'DxCPQ__Translated_Value__c': '',
-              //       'Id':''
-              //     });
-              //   }})
-              // }
-              // else{
-              //   //code for when this.transRecordNameArray & this.extractedwords are of same length
-              //   this.extractedWords.forEach(word => {
-              //   if (!this.transRecordNameArray.includes(word)) 
-              //   {
-              //     this.transRecordNameArray.push(word);
-              //     this.translatedRecords.push({
-              //       'Name': word,
-              //       'DxCPQ__FieldValue__c': '',
-              //       'DxCPQ__Translated_Value__c': '',
-              //       'Id':''
-              //     });
-              //   }
-              //   });
-              // }
-              //this.selectedLanguage = this.translatedRecords[0].DxCPQ__Language__c;
-          } 
-          else {
-            this.translatedRecords = [];
-            // if(this.extractedWords.length>0){
-            //   this.extractedWords.forEach((extraxtElem) => {
-            //   this.translatedRecords.push({
-            //     'Name': extraxtElem,
-            //     'DxCPQ__FieldValue__c': '',
-            //     'DxCPQ__Translated_Value__c': '',
-            //     'Id': ''
-            //     });
-            //   })
-            // } else {
-              this.translatedRecords = this.dataArray;
-            // }
-          }
-          this.originalData = JSON.parse(JSON.stringify(this.translatedRecords));
-          console.log('this.originalData 1017--? ', this.originalData);
+            if (result && result.length > 0) {
+              this.transRecordNameArray = result.map(record => record.Name);
+              this.showTranslationRows(result.map(record => ({
+                'Name': record.Name,
+                'DxCPQ__FieldValue__c': record.DxCPQ__FieldValue__c,
+                'DxCPQ__Translated_Value__c': record.DxCPQ__Translated_Value__c,
+                'Id': record.Id
+              })));
+            } else {
+              this.transRecordNameArray = [];
+              this.showTranslationRows([this.newTranslationRow()]);
+            }
           })
           .catch(error => {
             let errorMessage = error.message || 'Unknown error message';
@@ -2123,27 +2083,26 @@ this.resetImageWatermarkFields();
   }
 
   handleClick() {
-  const newDataArray = {
-          'Name': '',
-          'DxCPQ__FieldValue__c': '',
-          'DxCPQ__Translated_Value__c': '',
-          'Id' : this.uniqueIdentifier
-      };
-      this.translatedRecords.push(newDataArray);
+    const row = this.newTranslationRow();
+    this.translatedRecords.push(row);
+    this.originalData.push({ ...row });
   }
 
   handleRemoveRow(event) {
       event.preventDefault();
       const indexVal = event.target.dataset.index;
-      var id = this.translatedRecords[indexVal].Id;
-      var regex = /^([a-zA-Z0-9_-]){18}$/;
+      const id = this.translatedRecords[indexVal].Id;
+      const regex = /^([a-zA-Z0-9_-]){18}$/;
+      const removeFromLists = () => {
+        this.translatedRecords = this.translatedRecords.filter(row => row.Id !== id);
+        this.originalData = this.originalData.filter(row => row.Id !== id);
+      };
 
       if(regex.test(id)){
           deleteMethod({deleteRecordId : id })
           .then(result => {
             if(result){
-              this.translatedRecords.splice(indexVal, 1);
-              this.translatedRecords = [...this.translatedRecords];
+              removeFromLists();
               this.showToast('Success', 'Record deleted successfully', 'success'); 
             }else{
               this.showToast('Error', 'Error in deleting records, please check the logs', 'error');
@@ -2155,11 +2114,8 @@ this.resetImageWatermarkFields();
             createLog({ recordId: '', className: 'TemplateContentDetails LWC Component - connectedCallback()', exceptionMessage: errorMessage, logData: tempError, logType: 'Exception' });
           });
       }else{
-          this.translatedRecords.splice(indexVal, 1);
-          this.translatedRecords = [...this.translatedRecords];
+          removeFromLists();
       }
-      this.originalData = JSON.parse(JSON.stringify(this.translatedRecords));
-      console.log('this.originalData 1071--? ', this.originalData);
   }
 
   handleLanguageChange(event) {
@@ -2167,37 +2123,31 @@ this.resetImageWatermarkFields();
     this.transRecordsRetrive();
   }
 
-  handleCellOneInputChange(event) {
+  // Writes one edited cell to the shown row and to the same row of the full list.
+  updateTranslationCell(event, field) {
     const indexVal = parseInt(event.target.dataset.index);
-    // Check if indexVal is valid
     if (isNaN(indexVal) || indexVal < 0 || indexVal >= this.translatedRecords.length) {
       console.error('Invalid index:', indexVal);
       return;
-    } 
-    this.translatedRecords[indexVal].Name = event.target.value; 
-    this.originalData = JSON.parse(JSON.stringify(this.translatedRecords));
-    console.log('this.originalData 1088--? ', this.originalData);
+    }
+    const row = this.translatedRecords[indexVal];
+    row[field] = event.target.value;
+    const full = this.originalData.find(item => item.Id === row.Id);
+    if (full) {
+      full[field] = event.target.value;
+    }
+  }
+
+  handleCellOneInputChange(event) {
+    this.updateTranslationCell(event, 'Name');
   }
 
   handleCellTwoInputChange(event) {
-    const indexVal = parseInt(event.target.dataset.index);
-    if(isNaN(indexVal) || indexVal<0 || indexVal >= this.translatedRecords.length){
-      console.error('Invalid index:', indexVal);
-      return;
-    }
-    this.translatedRecords[indexVal].DxCPQ__FieldValue__c = event.target.value; 
-    this.originalData = JSON.parse(JSON.stringify(this.translatedRecords));
-    console.log('this.originalData 1099--? ', this.originalData);
+    this.updateTranslationCell(event, 'DxCPQ__FieldValue__c');
   }
 
   handleCellThreeInputChange(event) {
-    const indexVal = parseInt(event.target.dataset.index);
-    if(isNaN(indexVal) || indexVal<0 || indexVal >= this.translatedRecords.length){
-      console.error('Invalid index:', indexVal);
-    }
-    this.translatedRecords[indexVal].DxCPQ__Translated_Value__c = event.target.value; 
-    this.originalData = JSON.parse(JSON.stringify(this.translatedRecords));
-    console.log('this.originalData 1109--? ', this.originalData);
+    this.updateTranslationCell(event, 'DxCPQ__Translated_Value__c');
   }
 
   updateTranslatedValues(list) {
@@ -2219,60 +2169,45 @@ this.resetImageWatermarkFields();
   }
 
   handleSave() {
-    this.translatedRecords.forEach(record => {
-      if (record.Name === null || record.Name === '') {
-        this.showToast('Error','Some of the row(s) Name has no values','error');
-      }
-    });
+    // The full list is saved, not just the rows a search is showing.
+    const rowsToSave = this.originalData;
+    if (rowsToSave.some(record => !record.Name)) {
+      this.showToast('Error', 'Some of the row(s) Name has no values', 'error');
+      return;
+    }
 
-    let fieldNameRequire = true;
-    this.translatedRecords.forEach(record => {
-      if (!record.Name) {
-        fieldNameRequire = false;
-      }
-    });
+    // A copy with the names the server expects, so that the rows of the dialog stay as they are if saving fails.
+    const payload = this.updateTranslatedValues(rowsToSave.map(record => ({
+      Id: record.Id,
+      Name: record.Name,
+      FieldValue: record.DxCPQ__FieldValue__c,
+      TranslatedValue: record.DxCPQ__Translated_Value__c
+    })));
 
-    if(fieldNameRequire){
-      this.translatedRecords.forEach(record => {
-        // Rename DxCPQ__FieldValue__c to FieldValue
-        if (record.hasOwnProperty('DxCPQ__FieldValue__c')) {
-          record.FieldValue = record['DxCPQ__FieldValue__c'];
-          delete record['DxCPQ__FieldValue__c'];
-        }
-        
-        // Rename DxCPQ__Translated_Value__c to TranslatedValue
-        if (record.hasOwnProperty('DxCPQ__Translated_Value__c')) {
-          record.TranslatedValue = record['DxCPQ__Translated_Value__c'];
-          delete record['DxCPQ__Translated_Value__c'];
-        }
-      });
-      let updatedStrLst = this.updateTranslatedValues(this.translatedRecords);
-      console.log('Updated translatedRecords:', updatedStrLst);
-
-      createUpdateMethod({ 
-        jsonStringData: JSON.stringify(updatedStrLst), 
-        language: this.selectedLanguage,
-        docTemplateId: this.recordId
-      })
-      .then(result => {
+    createUpdateMethod({ 
+      jsonStringData: JSON.stringify(payload), 
+      language: this.selectedLanguage,
+      docTemplateId: this.recordId
+    })
+    .then(result => {
+      if (result) {
         this.showToast('Success', 'Record saved successfully', 'success'); 
         this.isTranslateModalOpen = false;
         this.translatedRecords = [];
-      })
-      .catch(error => {
-        this.showToast('Error', 'An error occurred while saving the record', 'error');
-        let errorMessage = error.message || 'Unknown error message';
-        let tempError = error.toString();
-        createLog({ recordId: '', className: 'TemplateContentDetails LWC Component - connectedCallback()', exceptionMessage: errorMessage, logData: tempError, logType: 'Exception' });});
+        this.originalData = [];
+        this.template.querySelector('c-modal[data-id="translation"]').hide();
+      } else {
+        this.showToast('Error', 'The translations could not be saved, please check the logs', 'error');
       }
+    })
+    .catch(error => {
+      this.showToast('Error', 'An error occurred while saving the record', 'error');
+      let errorMessage = error.message || 'Unknown error message';
+      let tempError = error.toString();
+      createLog({ recordId: '', className: 'TemplateContentDetails LWC Component - connectedCallback()', exceptionMessage: errorMessage, logData: tempError, logType: 'Exception' });
+    });
+  }
 
-      /* else{
-        this.showToast('Error', 'Please fill Field Names in all rows', 'error');
-      } */
-      this.template.querySelector('c-modal[data-id="translation"]').hide();
-    }
-    
-  
   showToast(title, message, variant) {
     const toastEvent = new ShowToastEvent({
         title: title,
@@ -2297,7 +2232,7 @@ this.resetImageWatermarkFields();
     if (searchTerm) {
       this.translatedRecords = this.originalData.filter(record => {
           return Object.values(record).some(value =>
-              value && value.toLowerCase().includes(searchTerm)
+              value && String(value).toLowerCase().includes(searchTerm)
           );
       });
     } else {
