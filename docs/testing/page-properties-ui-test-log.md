@@ -10,6 +10,7 @@ Where it lives: the designer component `templateDesignerCMP` (dialog markup in i
 | P2 | Type 2.5 as left margin (before the fix) | FAIL: red "Your entry isn't a valid increment", Save did nothing useful. See P-D3. |
 | P3 | Type 2.5, Save, reopen (after the fix) | Pass. Saved `margin-left` `2.5px`, toast "Page Configurations are saved successfully!", the dialog shows 2.5 again. The footer CSS saved by the same click now has `margin-left` (P-D1). |
 | P4 | Put the margin back to 0 and Save | Pass (restores the test data). |
+| P5 | Real PDF with changed properties (template ZZ Translation Test): page margins left and right 40px, header background #DDEEFF, header border red, header left padding 20px; PDF made through the real generation path and read | Pass. The body moved right by the margin (40px is 30pt in the PDF, so the text starts at 59pt instead of 29pt); the header text moved by its 20px padding (starts at 45pt, inside the 30pt margin); the PDF paints the light blue background and the red border (fill colours 221,238,255 and 255,0,0); the footer text starts at the new left margin (30pt) and the page number ends at the right margin. The footer layout looked odd earlier only because that template had zero paddings and margins and a white border (U-F3 explained: it was the saved properties, not a defect). |
 
 ## Defects
 
@@ -34,4 +35,4 @@ Where it lives: the designer component `templateDesignerCMP` (dialog markup in i
 
 ## Not tested yet
 
-Header Properties tab in the browser, a real PDF with changed margins, paddings, border and background (only the CSS text is tested), landscape, `separateBorders`, unit conversions, the cancel button.
+Footer Properties tab values in a PDF (border, padding), first page header properties, landscape, `separateBorders`, unit conversions, the cancel button.

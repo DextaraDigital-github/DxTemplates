@@ -31,7 +31,7 @@ How it is stored: one `Section_Content__c` JSON per template footer, `{ sections
 |---|---|
 | U-F1 | Delete button has no handler (same as Header U-H1). |
 | U-F2 | The section name is fixed to "Footer" and disabled; saving without any column count and without the page number saves an empty footer with no message. |
-| U-F3 | In the real PDF without saved Footer Properties the footer boxes are laid out oddly (left and center text start at the same position, the right text is at the page edge, "Page n of m" stacks in a narrow box). Probably the missing Footer Properties; to be checked in the Page Properties cycle. |
+| U-F3 | RESOLVED: the odd footer layout in the real PDF came from the saved Page Properties of that template (zero paddings and margins); with changed properties the footer follows them (see page-properties-ui-test-log.md, P5). |
 | U-F4 | The page number is printed inside the right-most column box only; with 1 or 2 columns it is in the last one. |
 
 ## Not tested yet
