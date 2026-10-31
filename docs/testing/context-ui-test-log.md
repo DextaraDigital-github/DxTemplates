@@ -52,3 +52,35 @@ Merge field insert; image insert; the visibility filter dialog; Delete; New sect
 ## Correction found during the Header cycle (2026-10-31)
 
 C-D1 was fixed wrongly for the dropdown: I changed the Courier option's value to `courier, monospace`, but the rich text editor only accepts its own font names and silently ignores any other value, so choosing Courier in the Context editor did nothing from that fix until now. Re-fixed: the dropdown gives the editor `courier`, and `upgradeEditorFonts` (in `dxPdfFonts`) writes `courier, monospace` (and `verdana` as `Verdana, sans-serif`) when the section is saved. The Jest test that asserted the stack as the dropdown value was wrong and has been replaced. Details and the measurements: `docs/testing/header-ui-test-log.md` (H-D2). Browser check after the correction: choosing Courier in the Context editor puts `font-family: courier` on the selected text (the dropdown works again); the stack is written on save.
+
+## Custom CSS and visibility filter (2026-11-01)
+
+Org: scratch org, template "ZZ Clip Test", section "Seq A" (rule and CSS were removed/left as noted). Jest: 4 new tests in `templateContentDetails.test.js` (30 now), 10 new in `dxShowSelectedTemplate/__tests__/visibilityRules.test.js`.
+
+| # | Test | Result |
+|---|---|---|
+| C7 | Custom Section CSS: type `color: red;`, Save in the dialog, Update (New Page was ticked) | Pass after fix C-D8..C-D10. Stored: page-break div around a `color: red` div around the text, once. |
+| C8 | Reopen the section and the CSS dialog | Pass: the dialog shows `color: red;` (empty before the fix). Change to `color: blue;`, Update: the wrapper was replaced, not nested. |
+| C9 | Filter dialog: Account / Type / Equals / Customer - Direct, Create Rule, Update | Pass. `Section_Visibility_Rule__c` set after Update (the rule itself is created when the dialog's Create Rule is pressed, the link to the section only on Update/Save). Reopening the dialog shows the saved condition. |
+| C10 | Real Generate PDF screen (component on the Account page), Account Type = Customer - Direct, then Prospect; stored Document body compared | Pass. Direct: Seq A in the body (D-0103); Prospect: Seq A missing, tables still there (D-0105). Template had to be active to be listed; deactivated again, Account Type restored. |
+| C11 | "Reset Rule & Save" | Pass: rule link null, content kept. |
+
+| # | Defect | Status |
+|---|---|---|
+| C-D8 | The CSS typed for one section stayed in the component when the editor was cleared for the next section, so the next saved section got the first one's wrapper. | FIXED (reset on clear and on load). Jest failed first. |
+| C-D9 | A section saved with custom CSS reopened with an empty CSS dialog and the wrapper in the editor; typing CSS again nested another wrapper. | FIXED (dialog shows the CSS, wrapper replaced; clearing the CSS removes it). Jest failed first; browser-verified. |
+| C-D10 | New Page won over the custom CSS: with both set, the CSS was dropped silently (U-C3). | FIXED: both are written (CSS div inside the page-break div). |
+| C-D11 | **Visibility rules were evaluated wrongly at PDF time** (`dxShowSelectedTemplate.evaluateExpression`): every condition had to hold whatever the operator (OR behaved as AND), parentheses and AND/OR precedence were ignored, a number or checkbox from the record never equalled the rule's text (`5 !== "5"`, `true !== "true"`), `<`/`>` compared numbers as text ("9" > "10"), and `Condition1` also replaced inside `Condition10`. | FIXED: new pure module `visibilityRules.js` (parser with AND over OR, parentheses; numeric and boolean aware); 10 Jest tests, written first. Browser: single-condition rule verified on the real screen; OR/groups covered by Jest only. |
+
+## Observations for the UI discussion
+
+| # | Observation |
+|---|---|
+| U-C6 | The three icons above the editor have no text: `</>` = custom CSS, the page icon = visibility filter, `?` = help (opens a Google Drive PDF in a new tab). |
+| U-C7 | Create Rule in the filter dialog saves the rule immediately, but the section only points to it after Update; closing without Update leaves an orphan rule (Rule and Rule Condition records are never cleaned up). |
+| U-C8 | The generate screen lists only active templates; an active template is read-only in the designer. |
+| U-C9 | The visibility rule is evaluated in the browser (Generate PDF screen) only; a PDF made by another path (Apex or flow calling `generateDocument` directly with its own body) does not apply it. |
+
+## Not yet tested
+
+Image insert and resize in a Context section, Delete / New / Clone, merge-field value in CSS, OR/group rules in the browser.

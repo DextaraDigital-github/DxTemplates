@@ -244,6 +244,73 @@ describe('c-template-content-details', () => {
         expect(savedContent()).toBe('<div style="color: red;"><p>Hi</p></div>');
     });
 
+    // C-D8: the CSS typed for one section stayed in the component when the designer cleared the editor for the
+    // next section, so the next section was saved with the first section's wrapper.
+    it('does not carry the custom CSS of one section into the next section that is saved', async () => {
+        const element = await openSavedSection('<p>Hi</p>');
+        element.shadowRoot.querySelector('lightning-button-icon[title="Custom Section CSS"]').click();
+        await flush();
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        textarea.value = 'color: red;';
+        textarea.dispatchEvent(new CustomEvent('change'));
+
+        element.resetvaluesonchildcmp();
+        gettemplatesectiondata.mockResolvedValue({ ...SECTION, DxCPQ__Section_Content__c: '<p>Other</p>' });
+        element.loadsectionsectionvaluesforedit('a02OTHER');
+        await flush();
+        jest.runAllTimers();
+        await flush();
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe('<p>Other</p>');
+    });
+
+    // C-D9: a section saved with custom CSS reopens with the wrapper div in the editor; typing CSS again wrapped
+    // it once more, and the dialog started empty although the section had CSS.
+    it('shows the saved custom CSS in the dialog and replaces the wrapper instead of nesting it', async () => {
+        const element = await openSavedSection('<div style="color: red;"><p>Hi</p></div>');
+        element.shadowRoot.querySelector('lightning-button-icon[title="Custom Section CSS"]').click();
+        await flush();
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        expect(textarea.value).toBe('color: red;');
+        textarea.value = 'color: blue;';
+        textarea.dispatchEvent(new CustomEvent('change'));
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe('<div style="color: blue;"><p>Hi</p></div>');
+    });
+
+    it('takes the wrapper off when the custom CSS is cleared in the dialog', async () => {
+        const element = await openSavedSection('<div style="color: red;"><p>Hi</p></div>');
+        element.shadowRoot.querySelector('lightning-button-icon[title="Custom Section CSS"]').click();
+        await flush();
+        const textarea = element.shadowRoot.querySelector('lightning-textarea');
+        textarea.value = '';
+        textarea.dispatchEvent(new CustomEvent('change'));
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe('<p>Hi</p>');
+    });
+
+    // Before, New Page won and the custom CSS was dropped silently.
+    it('keeps both the custom CSS and the page break when New Page is ticked, and reopens without nesting', async () => {
+        const stored = '<div style="page-break-before : always;"><div style="color: red;"><p>Hi</p></div></div>';
+        const element = await openSavedSection(stored, { DxCPQ__New_Page__c: true });
+        element.shadowRoot.querySelector('lightning-button-icon[title="Custom Section CSS"]').click();
+        await flush();
+        expect(element.shadowRoot.querySelector('lightning-textarea').value).toBe('color: red;');
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe(stored);
+    });
+
     describe('Clause section', () => {
         const PAYMENT = { recordId: 'a00CLAUSE1', recordName: 'ZZ Payment Terms', recordObject: { DxCPQ__Body__c: '<p><b>Payment Terms</b></p>' } };
         const lookup = element => element.shadowRoot.querySelector('c-multi-lookup-component');

@@ -20,6 +20,7 @@ import { copyText } from 'c/dxClipboard';
 export default class TemplateContentDetails extends NavigationMixin(LightningElement) {
   @track showSectionCss = false;
   sectioncssval = '';
+  cssPrefilled = false;
   //variables added by Bhavya for Resizing Image in Context Section
   @track showResizeModal = false;
   process = '';
@@ -432,6 +433,13 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
 
   // A New Page section is stored inside a page-break div and reopens with that div in the editor, so take the
   // old wrapper(s) off before the save adds one back (otherwise they nest more deeply on every save).
+  // The custom section CSS is stored the same way: a div with only a style attribute around the whole text.
+  readCssWrapper(str) {
+    const match = /^\s*<div style="([^"]*)">([\s\S]*)<\/div>\s*$/i.exec(str || '');
+    if (!match || /^\s*page-break-before\s*:/i.test(match[1])) { return null; }
+    return { css: match[1], inner: match[2] };
+  }
+
   removePageBreakWrappers(str) {
     const wrapper = /^\s*<div style="page-break-before\s*:\s*always;?">([\s\S]*)<\/div>\s*$/i;
     while (wrapper.test(str)) { str = str.replace(wrapper, '$1'); }
@@ -440,6 +448,10 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
 
   handlesectionsave(event) {
     this.richtextVal = this.removePageBreakWrappers(this.upgradeLegacyFonts(this.handleWhiteSpacesinText(this.richtextVal)));
+    if (this.cssPrefilled) {
+      const wrapped = this.readCssWrapper(this.richtextVal);
+      if (wrapped) { this.richtextVal = wrapped.inner; }
+    }
     var richtextvalvar = this.richtextVal;
     this.updatedRichTextVal = this.richtextVal;
     var mergefieldsfinalList = [];
@@ -452,14 +464,14 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
 
     var currecid = this.sectionrecordid;
     if (this.richtextVal != '' && this.richtextVal != null) {
+      let content = this.richtextVal;
+      if (this.sectioncssval) {
+        content = `<div style="${this.sectioncssval}">` + content + `</div>`;
+      }
       if (this.newpage) {
-        this.Recorddetailsnew.DxCPQ__Section_Content__c = "<div style=\"page-break-before : always;\">" + this.richtextVal + "</div>";
-      } else if(this.sectioncssval) {
-        this.Recorddetailsnew.DxCPQ__Section_Content__c = `<div style="${this.sectioncssval}">` + this.richtextVal + `</div>`;
+        content = "<div style=\"page-break-before : always;\">" + content + "</div>";
       }
-      else{
-        this.Recorddetailsnew.DxCPQ__Section_Content__c = this.richtextVal;
-      }
+      this.Recorddetailsnew.DxCPQ__Section_Content__c = content;
       this.Recorddetailsnew.DxCPQ__New_Page__c = this.newpage;
     }
     this.updatedRichTextVal = this.richtextVal;
@@ -652,6 +664,8 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
   @api resetvaluesonchildcmp() {
     this.dispatchEvent(new CustomEvent('datasaved', {detail: true }));
     this.showclause = false;
+    this.sectioncssval = '';
+    this.cssPrefilled = false;
     this.ukey = (new Date()).getTime();
     this.Recorddetailsnew.Id = '';
     this.Recorddetailsnew.Name = '';
@@ -716,6 +730,8 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
   @api loadsectionsectionvaluesforedit(recordID) {
     this.isLoaded = true;
     this.value = [];
+    this.sectioncssval = '';
+    this.cssPrefilled = false;
     this.ruleExists = false;
     this.sectionrecordid = recordID;
     this.Recorddetailsnew.Id = recordID;
@@ -1291,6 +1307,12 @@ this.modifyRichTextVal();
 
 
     handleSectionCss(event){
+        // A saved section reopens with its CSS wrapper in the editor: show that CSS and replace the wrapper on save.
+        const wrapped = this.sectioncssval ? null : this.readCssWrapper(this.removePageBreakWrappers(this.richtextVal));
+        if (wrapped) {
+            this.sectioncssval = wrapped.css;
+            this.cssPrefilled = true;
+        }
         this.showSectionCss = true;
         this.isModalOpen = false;
         this.template.querySelector('c-modal[data-id="images"]').show();

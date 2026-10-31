@@ -6,6 +6,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getAllPopupMessages from '@salesforce/apex/PopUpMessageSelector.getAllConstants';
 import { loadStyle } from 'lightning/platformResourceLoader';
 import rte_tbl from '@salesforce/resourceUrl/rte_tbl';
+import { evaluateVisibility } from './visibilityRules';
 
 export default class DxShowSelectedTemplate extends LightningElement {
     @api showHeader;
@@ -56,56 +57,11 @@ export default class DxShowSelectedTemplate extends LightningElement {
             }
         }
     
-    evaluateExpression(expression) {
-        const record = this.modifiedJson.record[0];
-        const conditions = expression.split(/\s*(?:\|\||&&)\s*/);
-        for (let condition of conditions) {
-            const [field, operator,value] = condition.split(/\s*(<=|>=|==|!=|<|>)\s*/);
-            const apiName = Object.keys(record).find(key => key.toLowerCase() === field);
-            //console.log('apiname value',apiName);
-            switch (operator){
-                case '==':
-                    if (record[apiName] !== value) {
-                        return false;
-                    }
-                    break;
-                case '!=': 
-                    if (record[apiName] == value) {
-                        return false;
-                    }
-                    break;
-                case '<': 
-                    if (record[apiName] >= value) {
-                        return false;
-                    }
-                    break;
-                case '<=':
-                    if (record[apiName] > value) {
-                        return false;
-                    }
-                    break;
-                case '>': 
-                    if (record[apiName] <= value) {
-                        return false;
-                    }
-                    break;
-                case '>=':
-                    if (record[apiName] < value) {
-                        return false;
-                    }
-                    break;
-            }
-            // if (record[apiName] !== value) {
-            //     return false;
-            // }
-        }
-        return true;
-    }
-
     performCalculations() {
-        for (let expression of this.ruleObjData) {
-            const result = this.evaluateExpression(expression.conditionString);
-            this.calculatedResults.push({ ruleId: expression.ruleId, result });
+        const record = this.modifiedJson.record[0];
+        for (let rule of this.ruleObjData) {
+            const result = evaluateVisibility(rule.ruleExpression, rule.conditions, record);
+            this.calculatedResults.push({ ruleId: rule.ruleId, result });
         }
         console.log('Calculated Results:', this.calculatedResults);
     }
@@ -123,24 +79,11 @@ export default class DxShowSelectedTemplate extends LightningElement {
             let ruleObjArr = [];
             if (ruleInfo && ruleInfo.length > 0) {
                 ruleInfo.forEach(rule => {
-                    let conditionString = rule.DxCPQ__Rule_Expression__c;
-                    if(rule.DxCPQ__Rule_Conditions__r){
-                        let rc = rule.DxCPQ__Rule_Conditions__r;
-                        for (let i = 0; i < rc.length; i++) {
-                            let field = rc[i].DxCPQ__Condition_Field__c.replace(/[^a-zA-Z0-9 _]/g, "");
-                            field = field.replace(/\s/g, "").replaceAll("-", "");
-                             let str = field.toLowerCase() + " " + rc[i].DxCPQ__Operator__c + " " + rc[i].DxCPQ__Value__c;
-                            conditionString = conditionString.replace(rc[i].Name, str);
-                        }
-                    }
-                    else{
-                        conditionString = '';
-                    }
-                    let ruleObj = {};
-                    ruleObj.ruleId = rule.Id;
-                    ruleObj.conditionString = conditionString.trim() !== ''? conditionString.replaceAll('"', '') : '';
-                    ruleObj.ruleExpression = rule.DxCPQ__Rule_Expression__c;
-                    ruleObjArr.push(ruleObj);
+                    ruleObjArr.push({
+                        ruleId: rule.Id,
+                        ruleExpression: rule.DxCPQ__Rule_Expression__c,
+                        conditions: rule.DxCPQ__Rule_Conditions__r || []
+                    });
                 })
             }
             this.ruleObjData = ruleObjArr;
