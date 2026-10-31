@@ -105,7 +105,7 @@ public with sharing class DisplayRelatedObjects {
                 fieldStringSet.add(grpby.tolowercase());
                 
                 String fieldStringquery = String.join(new List<String>(fieldStringSet), ', ');    
-                String recordsQuery = 'select '+String.escapeSingleQuotes(fieldStringquery)+' from '+String.escapeSingleQuotes(childObject)+' where '+String.escapeSingleQuotes(string.valueof(jsonMap.get('childLookupfieldAPIname')))+'='+'\''+String.escapeSingleQuotes(recordid)+'\''+' '+ whereClauseinQuery+' '+String.escapeSingleQuotes(securityEnforced)+' order by '+String.escapeSingleQuotes(grpby)+' desc';
+                String recordsQuery = 'select '+String.escapeSingleQuotes(fieldStringquery)+' from '+String.escapeSingleQuotes(childObject)+' where '+String.escapeSingleQuotes(string.valueof(jsonMap.get('childLookupfieldAPIname')))+'='+'\''+String.escapeSingleQuotes(recordid)+'\''+' '+ whereClauseinQuery+' '+String.escapeSingleQuotes(securityEnforced)+' order by '+String.escapeSingleQuotes(grpby)+' asc nulls last';
                 ChildRecords = Database.query(recordsQuery);
                 
                 Map<Object, List<SObject>> recordCategoryMap = new Map<Object, List<SObject>>();

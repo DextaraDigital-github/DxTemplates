@@ -106,7 +106,7 @@ public with sharing class ROsectionAutomationController {
                 }
                 fieldStringSet.add(relatedObjectFieldNameToGroupRecords.tolowercase());
                 String fieldStringquery = String.join(new List<String>(fieldStringSet), ', ');             
-                String recordsQuery = 'select '+String.escapeSingleQuotes(fieldStringquery)+' from '+String.escapeSingleQuotes(relatedObjectAPIName)+' where '+String.escapeSingleQuotes(string.valueof(contentAndStylingMap.get('childLookupfieldAPIname')))+'='+'\''+String.escapeSingleQuotes(recordid)+'\''+' '+ whereClauseinQuery+' '+String.escapeSingleQuotes(securityEnforced)+' order by '+String.escapeSingleQuotes(relatedObjectFieldNameToGroupRecords)+' desc';
+                String recordsQuery = 'select '+String.escapeSingleQuotes(fieldStringquery)+' from '+String.escapeSingleQuotes(relatedObjectAPIName)+' where '+String.escapeSingleQuotes(string.valueof(contentAndStylingMap.get('childLookupfieldAPIname')))+'='+'\''+String.escapeSingleQuotes(recordid)+'\''+' '+ whereClauseinQuery+' '+String.escapeSingleQuotes(securityEnforced)+' order by '+String.escapeSingleQuotes(relatedObjectFieldNameToGroupRecords)+' asc nulls last';
                 relatedObjectQueriedRecords = Database.query(recordsQuery);    
                 
                 String ptrfield = (String) relatedObjectFieldNameToGroupRecords;  
