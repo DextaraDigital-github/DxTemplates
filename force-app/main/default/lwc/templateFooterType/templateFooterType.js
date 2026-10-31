@@ -2,6 +2,7 @@ import { LightningElement, wire, api, track } from 'lwc';
 import getContentVersions from '@salesforce/apex/FooterClass.getContentVersions';
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
 import { copyText } from 'c/dxClipboard';
+import { upgradeEditorFonts } from 'c/dxPdfFonts';
 
 export default class TemplateFooterType extends LightningElement {
     imageUrls = [];
@@ -62,7 +63,14 @@ export default class TemplateFooterType extends LightningElement {
 
     handleRichTextArea(event) {
         this.richtextVal = event.detail.value;
-        var rtdetails = { value: this.richtextVal, indexvar: this.indexvar, key: (new Date()).getTime() + ":" + this.indexvar };
+        this.notifyFooter();
+    }
+
+    // Tells the footer what this column now says. Every change of the text goes through here (typing, merge field,
+    // picture), so the footer always has the text that will be saved; two spaces in a row are sent as &nbsp; because the
+    // PDF would otherwise collapse them.
+    notifyFooter() {
+        var rtdetails = { value: upgradeEditorFonts(this.richtextVal.replace(/  /g, '&nbsp;&nbsp;')), indexvar: this.indexvar, key: (new Date()).getTime() + ":" + this.indexvar };
         var firecustomevent = new CustomEvent('saverichtextfooter', { detail: rtdetails });
         this.dispatchEvent(firecustomevent);
     }
@@ -103,7 +111,6 @@ export default class TemplateFooterType extends LightningElement {
             this.mergefieldname = '{!' + this.objectName + '.' + mergeField + '}';         
        
             copyText(this.mergefieldname);
-            alert(' Copy success ');
             this.selectedMergefields.push(this.mergefieldname);
         }
         this.template.querySelector('c-modal').hide();
@@ -118,6 +125,7 @@ export default class TemplateFooterType extends LightningElement {
 
             this.richtextVal += this.mergefieldname;
             this.selectedMergefields.push(this.mergefieldname);
+            this.notifyFooter();
         }
         this.template.querySelector('c-modal').hide();
         this.showmergefield = false;
@@ -141,6 +149,7 @@ export default class TemplateFooterType extends LightningElement {
         this.imagebuttonlabel = 'Change Image';
         this.showImage = true;
         this.richtextVal = this.richtextVal + '<img src="' + this.selectedimageurl + '"/>';
+        this.notifyFooter();
         this.template.querySelector('c-modal').hide();
         this.isModalOpen = false;
     }

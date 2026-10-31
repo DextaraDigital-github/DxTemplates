@@ -184,8 +184,19 @@ export default class TemplateFooter extends NavigationMixin(LightningElement) {
     gettemplatesectiondata({ editrecordid: recordID })
       .then(result => {
         if (result != null) {
+          // Start from an empty footer, so nothing of the footer that was open before stays when this one has no content.
+          this.columnvalue = null;
+          this.footerSectionsMap = [];
+          this.oldFooterColumnList = {};
+          this.displaypagesequence = false;
+          this.value = [];
+          if (!result.DxCPQ__Section_Content__c) {
+            const emptyEvent = new CustomEvent('datasaved', {detail: true });
+            this.dispatchEvent(emptyEvent);
+            return;
+          }
           var sectioncontent = JSON.parse(result.DxCPQ__Section_Content__c);
-          
+
           /* Fix for Header Onload Alignment by Rahul*/
           let sectionsMapTemp = sectioncontent.sectionsContent;
           sectionsMapTemp.sort((a, b) => {
@@ -198,11 +209,9 @@ export default class TemplateFooter extends NavigationMixin(LightningElement) {
           this.handlecolumnsClass(this.columnvalue);
 
           this.displaypagesequence = sectioncontent.displaypagesequence;
-          this.template.querySelectorAll('lightning-checkbox-group ').forEach(element => {
-            if (this.displaypagesequence == true) {
-              this.value.push('Display Page Number Sequence');
-            }
-          });
+          if (this.displaypagesequence == true) {
+            this.value = ['Display Page Number Sequence'];
+          }
           const saveEvent = new CustomEvent('datasaved', {detail: true });
           this.dispatchEvent(saveEvent);
         }
@@ -215,22 +224,22 @@ export default class TemplateFooter extends NavigationMixin(LightningElement) {
   handlesectionsave(event) {
     this.Recorddetailsnew.Name = this.sectiontype;
     var currecid = this.sectionrecordid;
-    if (this.footerSectionsMap.length > 0) {
-      this.footerSectionsMap.forEach((loopvar) => {
-        var sectionval = loopvar.value;
-        if (sectionval.includes('img') && !sectionval.includes('style')) {
-          const styletag = 'style=\"max-height:35px; max-width:100%; height:35px; margin:10px 20px;\"';
-          sectionval = sectionval.slice(0, sectionval.lastIndexOf('"') + 1) +
-            ' ' + styletag + sectionval.slice(sectionval.lastIndexOf('"') + 1, sectionval.length);
-          loopvar.value = sectionval;
-        }
-      });
-      var obj = {};
-      obj.sectionsCount = this.columnvalue;
-      obj.sectionsContent = this.footerSectionsMap;
-      obj.displaypagesequence = this.displaypagesequence;
-      this.Recorddetailsnew.DxCPQ__Section_Content__c = JSON.stringify(obj);
-    }
+    this.footerSectionsMap.forEach((loopvar) => {
+      var sectionval = loopvar.value;
+      if (sectionval.includes('img') && !sectionval.includes('style')) {
+        const styletag = 'style=\"max-height:35px; max-width:100%; height:35px; margin:10px 20px;\"';
+        sectionval = sectionval.slice(0, sectionval.lastIndexOf('"') + 1) +
+          ' ' + styletag + sectionval.slice(sectionval.lastIndexOf('"') + 1, sectionval.length);
+        loopvar.value = sectionval;
+      }
+    });
+    // Written even without a column: a footer that only shows page numbers is a valid footer.
+    var obj = {};
+    // '0' (not empty): the PDF controller reads the count as an Integer.
+    obj.sectionsCount = this.columnvalue || '0';
+    obj.sectionsContent = this.footerSectionsMap;
+    obj.displaypagesequence = this.displaypagesequence;
+    this.Recorddetailsnew.DxCPQ__Section_Content__c = JSON.stringify(obj);
 
     if (currecid != '' && this.sectionrecordid.indexOf('NotSaved') == -1) {
       this.Recorddetailsnew.Id = this.sectionrecordid;
