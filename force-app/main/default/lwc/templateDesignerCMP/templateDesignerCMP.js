@@ -2270,6 +2270,8 @@ this.resetImageWatermarkFields();
           this.showTranslations = false;
           this.showLoadingSpinner = false;
           this.data = [];
+          // Show what is saved (with record Ids), not the imported rows: saving those again would create them twice.
+          this.transRecordsRetrive();
         } else {
           console.error('Failed to insert records');
           this.showToastMsg('Error', 'Error saving translations. Please Contact Administrator.', 'Error');
@@ -2351,6 +2353,7 @@ parseCSV(csv) {
         this.data = lines.slice(1).map(line => parseLine(line));
         let emptyNameRows = [];
         let translatedValueWithoutLanguageRows = [];
+        let unknownLanguages = [];
 
         // Filter out rows where all columns are null or empty
         this.data = this.data.filter(row => row.some(cell => cell.trim() !== ''));
@@ -2367,6 +2370,9 @@ parseCSV(csv) {
             if (row[translatedValueIndex] && !row[languageIndex]) {
                 translatedValueWithoutLanguageRows.push(rowNumber);
             }
+            if (row[languageIndex] && !this.getLanguageCode(row[languageIndex].trim())) {
+                unknownLanguages.push(`Row ${rowNumber}: language "${row[languageIndex].trim()}" is not known.`);
+            }
         });
 
         this.errorMessages = [];
@@ -2378,6 +2384,8 @@ parseCSV(csv) {
         if (translatedValueWithoutLanguageRows.length > 0) {
             this.errorMessages.push(`Rows ${translatedValueWithoutLanguageRows.join(', ')}: Translated Value is present without Language. Please check the CSV file and re-upload.`);
         }
+
+        this.errorMessages.push(...unknownLanguages);
 
         if (this.errorMessages.length > 0) {
             this.disableCreate = true;
@@ -2413,8 +2421,21 @@ createTranslatedRecords() {
 }
 
 
+  // The file may name a language by its English name (French) or by the language key of the org (fr, en_US).
   getLanguageCode(language) {
-    return this.languageMap[language] || '';
+    if (this.languageMap[language]) {
+      return this.languageMap[language];
+    }
+    const keys = new Set([...Object.values(this.languageMap), ...this.languages.map(option => option.value)]);
+    return keys.has(language) ? language : '';
+  }
+
+  // Rows of the import preview, with the keys the table needs (a row is an array and cannot be a key).
+  get previewRows() {
+    return this.data.map((row, rowIndex) => ({
+      key: 'row' + rowIndex,
+      cells: row.map((text, cellIndex) => ({ key: 'cell' + rowIndex + '_' + cellIndex, text }))
+    }));
   }
 
   showToastMsg(title, msg, variant){

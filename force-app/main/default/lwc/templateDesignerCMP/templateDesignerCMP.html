@@ -1341,10 +1341,10 @@
 												</tr>
 											</thead>
 											<tbody>
-												<template for:each={data} for:item="row" for:index="rowIndex">
-													<tr key={row}>
-														<template for:each={row} for:item="cell" for:index="cellIndex">
-															<td key={cell}>{cell}</td>
+												<template for:each={previewRows} for:item="row">
+													<tr key={row.key}>
+														<template for:each={row.cells} for:item="cell">
+															<td key={cell.key}>{cell.text}</td>
 														</template>
 													</tr>
 												</template>

@@ -50,7 +50,7 @@ public with sharing class MergeFieldsClass {
             for(Translator__c transRec: translatorList){
                 string value;
                 if(transRec.Translated_Value__c != null  && transRec.Translated_Value__c.contains('<') && transRec.Translated_Value__c.contains('>')){
-                   value = transRec.Translated_Value__c.replaceAll('<[^>]+>', '');  
+                   value = transRec.Translated_Value__c.replaceAll('<[^>]+>', '');
                 }else{
                     value = transRec.Translated_Value__c;
                 }

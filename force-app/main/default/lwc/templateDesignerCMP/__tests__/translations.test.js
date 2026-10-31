@@ -6,6 +6,7 @@ import createUpdateMethod from '@salesforce/apex/LanguageTranslatorClass.createU
 import deleteMethod from '@salesforce/apex/LanguageTranslatorClass.deleteMethod';
 import selectedLangMethod from '@salesforce/apex/LanguageTranslatorClass.selectedLangMethod';
 import currectUserLang from '@salesforce/apex/LanguageTranslatorClass.currectUserLang';
+import insertTranslatedRecords from '@salesforce/apex/LanguageTranslatorClass.insertTranslatedRecords';
 
 // The runner's own ShowToastEvent stub drops the title and message; this one keeps them in `detail`.
 jest.mock('lightning/platformShowToastEvent', () => ({
@@ -228,5 +229,147 @@ describe('translation dialog of the designer', () => {
 
         expect(rows(element)).toHaveLength(1);
         expect(rows(element)[0].value).toBe('');
+    });
+});
+
+
+describe('import of translations from a CSV file', () => {
+    const header = 'Name,DxCPQ__FieldValue__c,DxCPQ__Translated_Value__c,DxCPQ__Language__c';
+
+    beforeEach(() => {
+        // FileReader answers through real timers.
+        jest.useRealTimers();
+        jest.spyOn(console, 'log').mockImplementation(() => {});
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        toasts.length = 0;
+        getDomainUrl.mockResolvedValue('https://example.my.salesforce.com');
+        getClassNames.mockResolvedValue({});
+        getFlowNames.mockResolvedValue({});
+        getPDFLinks.mockResolvedValue([]);
+        getAllUserLanguages.mockResolvedValue([{ label: 'English', value: 'en_US' }, { label: 'French', value: 'fr' }]);
+        getAllDocumentTemplateSections.mockResolvedValue([section('a01HEADER', 'Header', 1, 'Header')]);
+        currectUserLang.mockResolvedValue('English');
+        selectedLangMethod.mockResolvedValue([]);
+        insertTranslatedRecords.mockResolvedValue(true);
+        document.addEventListener('lightning__showtoast', collectToast);
+    });
+
+    afterEach(() => {
+        document.removeEventListener('lightning__showtoast', collectToast);
+        while (document.body.firstChild) {
+            document.body.removeChild(document.body.firstChild);
+        }
+        jest.restoreAllMocks();
+        jest.clearAllMocks();
+    });
+
+    const wait = () => new Promise(resolve => setTimeout(resolve, 60));
+
+    async function openImport() {
+        const element = createElement('c-template-designer-c-m-p', { is: TemplateDesignerCMP });
+        element.recordId = 'a00TEMPLATE';
+        document.body.appendChild(element);
+        await wait();
+        element.shadowRoot.querySelector('button[title="Translate"]').click();
+        await wait();
+        element.shadowRoot.querySelector('lightning-button-icon[data-id="importTranslation"]').click();
+        await wait();
+        return element;
+    }
+
+    async function upload(element, text, type = 'text/csv') {
+        const input = [...element.shadowRoot.querySelectorAll('lightning-input')].find(i => i.type === 'file');
+        const file = new File([text], 'translations.csv', { type });
+        Object.defineProperty(input, 'files', { value: [file], configurable: true });
+        input.dispatchEvent(new CustomEvent('change'));
+        await wait();
+    }
+
+    const createButton = element => [...element.shadowRoot.querySelectorAll('footer lightning-button')].find(b => b.label === 'Create Translations');
+
+    it('lists the rows of the file and creates them for this template with the language codes', async () => {
+        const element = await openImport();
+        await upload(element, [header, 'Greeting,Greeting,Bonjour,French', 'Thanks,Thanks,Merci,French'].join('\n'));
+
+        expect(createButton(element).disabled).toBe(false);
+        createButton(element).click();
+        await wait();
+
+        expect(insertTranslatedRecords).toHaveBeenCalledTimes(1);
+        expect(insertTranslatedRecords.mock.calls[0][0].translatedRecords).toEqual([
+            { Name: 'Greeting', DxCPQ__FieldValue__c: 'Greeting', DxCPQ__Translated_Value__c: 'Bonjour', DxCPQ__Language__c: 'fr', DxCPQ__DocumentTemplate__c: 'a00TEMPLATE' },
+            { Name: 'Thanks', DxCPQ__FieldValue__c: 'Thanks', DxCPQ__Translated_Value__c: 'Merci', DxCPQ__Language__c: 'fr', DxCPQ__DocumentTemplate__c: 'a00TEMPLATE' }
+        ]);
+        expect(toasts.map(t => t.message)).toContain('Translations saved successfully!');
+    });
+
+    it('reads values with a comma inside quotes and Windows line endings', async () => {
+        const element = await openImport();
+        await upload(element, [header, 'Offer,Offer,"Bonjour, monde",French'].join('\r\n') + '\r\n');
+
+        createButton(element).click();
+        await wait();
+
+        expect(insertTranslatedRecords.mock.calls[0][0].translatedRecords[0].DxCPQ__Translated_Value__c).toBe('Bonjour, monde');
+    });
+
+    // The file may hold the language key the org uses (fr) instead of its English name (French); the key was turned into an empty language.
+    it('accepts the language key as well as the language name', async () => {
+        const element = await openImport();
+        await upload(element, [header, 'Greeting,Greeting,Bonjour,fr', 'Hello,Hello,Hello,English'].join('\n'));
+
+        createButton(element).click();
+        await wait();
+
+        expect(insertTranslatedRecords.mock.calls[0][0].translatedRecords.map(r => r.DxCPQ__Language__c)).toEqual(['fr', 'en_US']);
+    });
+
+    it('refuses a file with a language it does not know, and names the row', async () => {
+        const element = await openImport();
+        await upload(element, [header, 'Greeting,Greeting,Bonjour,Klingon'].join('\n'));
+
+        expect(createButton(element).disabled).toBe(true);
+        expect(toasts.some(t => t.message.includes('Row 2') && t.message.includes('Klingon'))).toBe(true);
+    });
+
+    it('refuses a file with a row without a name, and names the row', async () => {
+        const element = await openImport();
+        await upload(element, [header, 'Greeting,Greeting,Bonjour,French', ',x,y,French'].join('\n'));
+
+        expect(createButton(element).disabled).toBe(true);
+        expect(toasts.some(t => t.message.includes('Rows 3') && t.message.includes('Name is empty'))).toBe(true);
+    });
+
+    it('does not accept a file that is not a CSV', async () => {
+        const element = await openImport();
+        await upload(element, 'not a csv', 'application/pdf');
+
+        expect(toasts.map(t => t.message)).toContain('Please upload a valid CSV file.');
+        expect(insertTranslatedRecords).not.toHaveBeenCalled();
+    });
+
+    // After "Create" the dialog showed the imported rows again, without their record Ids, so pressing Save there created them a second time.
+    it('shows the saved translations from the server after creating, not the imported rows', async () => {
+        const element = await openImport();
+        await upload(element, [header, 'Greeting,Greeting,Bonjour,French'].join('\n'));
+        selectedLangMethod.mockClear();
+        selectedLangMethod.mockResolvedValue(saved);
+
+        createButton(element).click();
+        await wait();
+
+        expect(selectedLangMethod).toHaveBeenCalledTimes(1);
+        expect(rows(element).map(r => r.value)).toEqual(['Greeting', 'Farewell', 'Thanks']);
+    });
+
+    it('says so when the server refuses the rows', async () => {
+        insertTranslatedRecords.mockResolvedValue(false);
+        const element = await openImport();
+        await upload(element, [header, 'Greeting,Greeting,Bonjour,French'].join('\n'));
+
+        createButton(element).click();
+        await wait();
+
+        expect(toasts.some(t => t.title === 'Error' && t.message.includes('Error saving translations'))).toBe(true);
     });
 });

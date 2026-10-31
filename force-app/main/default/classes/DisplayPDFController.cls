@@ -38,6 +38,81 @@ global with sharing class DisplayPDFController
      * @description Flag indicating whether to use default CSS styles.
      */
     public Boolean defaultCSS {get; set;}
+
+    /**
+     * @description    True when the document has text that the standard PDF font cannot print (Cyrillic, Greek, Arabic,
+     *                 Chinese, Japanese, ...): the page then prints the whole document in Arial Unicode MS, the font the
+     *                 Visualforce PDF engine has for those scripts. Without it such text is missing from the PDF.
+     */
+    public Boolean getUseUnicodeFont() {
+        return needsUnicodeFont(String.join(new List<String>{ displayText, leftheadertext, centerheadertext, rightheadertext,
+            leftfirstheadertext, centerfirstheadertext, rightfirstheadertext, leftfootertext, centerfootertext, rightfootertext }, ' '));
+    }
+
+    private static final Set<Integer> WINDOWS_1252_EXTRAS = new Set<Integer>{ 8364, 8218, 402, 8222, 8230, 8224, 8225, 710,
+        8240, 352, 8249, 338, 381, 8216, 8217, 8220, 8221, 8226, 8211, 8212, 732, 8482, 353, 8250,
+        339, 382, 376 };
+
+    /**
+     * @description    Chinese and Japanese text has no spaces, and the PDF engine only breaks a line at a space (a zero width
+     *                 space is not accepted), so a long paragraph stayed on one line and the part beyond the page edge was
+     *                 lost. A space is put between two adjacent characters of those scripts, inside a span that the page
+     *                 styles with a 1px font (class cs), so that the engine can break the line anywhere in the run and the
+     *                 text still looks closed. HTML tags and attributes are not touched.
+     * @param          html  text or HTML of the document
+     * @return         String the same text with break opportunities
+     */
+    @TestVisible
+    private static String addCjkLineBreaks(String html) {
+        if (html == null) {
+            return null;
+        }
+        List<Integer> result = new List<Integer>();
+        Boolean inTag = false;
+        Integer previous = 0;
+        for (Integer i = 0; i < html.length(); i++) {
+            Integer code = html.charAt(i);
+            if (code == 60) {
+                inTag = true;
+            } else if (code == 62) {
+                inTag = false;
+            }
+            if (!inTag && isCjk(code) && isCjk(previous)) {
+                result.addAll(CJK_BREAK.getChars());
+            }
+            result.add(code);
+            previous = inTag ? 0 : code;
+        }
+        return String.fromCharArray(result);
+    }
+
+    private static final String CJK_BREAK = '<span class="cs"> </span>';
+
+    private static Boolean isCjk(Integer code) {
+        return (code >= 12288 && code <= 12543)       // CJK punctuation, Hiragana, Katakana
+            || (code >= 13312 && code <= 19903)       // CJK extension A
+            || (code >= 19968 && code <= 40959)       // CJK ideographs
+            || (code >= 65280 && code <= 65519);      // full width forms
+    }
+
+    /**
+     * @description    Whether the text has a character outside Western European Latin (Latin-1 and the Windows-1252 punctuation).
+     * @param          text  text of the document
+     * @return         Boolean true when the Unicode font is needed
+     */
+    @TestVisible
+    private static Boolean needsUnicodeFont(String text) {
+        if (text == null) {
+            return false;
+        }
+        for (Integer i = 0; i < text.length(); i++) {
+            Integer code = text.charAt(i);
+            if (code > 255 && !WINDOWS_1252_EXTRAS.contains(code)) {
+                return true;
+            }
+        }
+        return false;
+    }
     
     /**
      * @description Text to be displayed on the page.
@@ -247,7 +322,8 @@ global with sharing class DisplayPDFController
                 defaultCSS = true;  
             } 
             if(inputparam != null){
-                displayText = String.escapeSingleQuotes(docrec.Document_Body__c).replace('\\', '');       
+                displayText = String.escapeSingleQuotes(docrec.Document_Body__c).replace('\\', '');
+                displayText = addCjkLineBreaks(displayText);       
             } else {
                 displayText = 'ID not found ' + inputparam;
             }

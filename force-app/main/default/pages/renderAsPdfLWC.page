@@ -6,6 +6,11 @@
         <style type="text/css" media="print">
             p{margin: 0 0 0 0;}
 
+            <apex:outputText rendered="{!useUnicodeFont}">
+                body, div, p, span, td, th, li, strong, b, em, i, u, a, h1, h2, h3, h4, h5, h6 { font-family: 'Arial Unicode MS' !important; }
+                span.cs { font-size: 1px; }
+            </apex:outputText>
+
             <apex:outputText rendered="{!if(isLandscape== false,true,false)}">
 				{!sanitizedHeaderJSON['header_left']}
                 {!sanitizedHeaderJSON['header_center']}

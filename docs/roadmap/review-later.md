@@ -4,6 +4,18 @@ Items the owner asked to keep on a list and look at later. Add new ones at the t
 
 ## Open
 
+### RL-4: Which translations apply when the record has no language? (raised 2026-10-31, discuss at the end)
+
+- **Code:** `MergeFieldsClass.mergefieldsMethod` / `resolveLocale`. When the record has no language value the code ALWAYS uses the `en_US` translations (a leftover `if (locale != null) locale = 'en_US'` overrides the user's own language). The translation dialog opens in the user's own language, so a French user's translations are entered but never applied to the PDF unless the record has a language.
+- **Question for the owner:** should the language of the user generating the PDF apply instead of `en_US`? (Behaviour change for customers who rely on `en_US` today.)
+- Details: `docs/testing/translations-ui-test-log.md`, U-T1.
+
+### RL-3: The language field named by the translation setting does not exist (raised 2026-10-31, discuss at the end)
+
+- **Code:** custom metadata `Document_Translation.Account_Language_Field` names `DxCPQ__Document_Language__c` on Account. That field is not in the package source or in this org, so `LanguageTranslatorClass.getLanguageSelected` fails its query (caught) on every merge and returns null.
+- **Question for the owner:** ship the field with the package, or document that customers create it, or remove the default metadata record?
+- Details: `docs/testing/translations-ui-test-log.md`, U-T2.
+
 ### RL-2: Do customers see stale component code after a package upgrade? (raised 2026-10-31)
 
 - **Why it matters:** RL-1 showed that this org's browsers keep component code for a year under an address (`_uid=LATEST&_cl=<ccv>`) that did NOT change through eight deploys. In a customer org the `ccv` presumably changes when the package is upgraded, but that is not verified. If it did not, users would keep running the old component until their browser cache is cleared.
