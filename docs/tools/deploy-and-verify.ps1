@@ -48,7 +48,7 @@ foreach ($name in $Component) {
 if ($allMatch) {
     Write-Host ''
     Write-Host 'The org holds the local code. If the page still behaves the old way, the browser is serving a cached copy:' -ForegroundColor Yellow
-    Write-Host '  Clear localStorage, sessionStorage, IndexedDB and the Cache API in the page, then reload; it can take up to three reloads. Cause not known yet: docs/roadmap/review-later.md (RL-1).' -ForegroundColor Yellow
+    Write-Host '  Cause: the browser caches component code for a year (Cache-Control immutable). Run docs/tools/refresh-cached-component-code.js in the page, then reload plainly (docs/roadmap/review-later.md, RL-1).' -ForegroundColor Yellow
 }
 else {
     Write-Host ''

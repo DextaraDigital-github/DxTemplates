@@ -4,14 +4,17 @@ Items the owner asked to keep on a list and look at later. Add new ones at the t
 
 ## Open
 
-### RL-1: Browser serves the old component for 2 to 3 reloads after a deploy (raised 2026-10-31)
+### RL-2: Do customers see stale component code after a package upgrade? (raised 2026-10-31)
 
-- **What is seen:** after `sf project deploy` the page keeps running the previous version of a component for two or three reloads, even after clearing localStorage, sessionStorage, IndexedDB and the Cache API. Seen several times (Clause lookup filter, Related Objects). The org itself holds the new code every time: `docs/tools/deploy-and-verify.ps1` reports `MATCH` for every file.
-- **What is ruled out:** the Session Setting "Enable secure and persistent browser caching to improve performance" is already switched off in this scratch org (confirmed by the owner, 2026-10-31), so that is not the cause here. A scratch org definition cannot set it anyway.
-- **What is not known:** which cache serves the old bundle (Lightning's component cache on the server side, the browser HTTP cache, or the extension's tab). Not investigated yet.
-- **Ideas to try when it is picked up:** compare the component bundle URL (`_lrmc` / version parameters) in the network log before and after a deploy; test a hard reload with the browser cache disabled in DevTools; test in a private window; check whether the first reload after the deploy fetches the old bundle from the server (response body) or from disk cache; test a different browser.
-- **Meanwhile:** run `docs/tools/deploy-and-verify.ps1 <component>` to prove the deploy, then reload up to three times and confirm with a property that only the new code has (see the playbook section "Stale component after a deploy").
-- **Why it matters:** it cost many minutes per cycle in the test sessions and makes a correct fix look broken.
+- **Why it matters:** RL-1 showed that this org's browsers keep component code for a year under an address (`_uid=LATEST&_cl=<ccv>`) that did NOT change through eight deploys. In a customer org the `ccv` presumably changes when the package is upgraded, but that is not verified. If it did not, users would keep running the old component until their browser cache is cleared.
+- **How to check:** install version N of the package in a second org, open a page that uses a component (note the `ccv` value in the page source and a visible marker), upgrade to version N+1 with a visible change, reload plainly, and see whether the change shows and whether `ccv` changed.
+- **Not done:** it needs a package version and a target org.
+
+### Smaller unexplained points from the RL-1 investigation
+
+- Why `ccv` never changed in this org after a deploy (the platform's rule is not documented; a web search found nothing).
+- Why a plain reload showed new code in two early cases (the browser probably had no cached entry then, for example after eviction or a refresh from another tab).
+- One hard reload out of four did not fetch the new code (the explanation in the playbook is a hypothesis).
 
 ## Other lists that wait for the UI discussion
 
@@ -19,4 +22,8 @@ The "Observations for the UI discussion" tables in `docs/testing/table-ui-test-l
 
 ## Closed
 
-(none yet)
+### RL-1: Browser serves the old component after a deploy (raised and closed 2026-10-31)
+
+- **Root cause:** the browser's HTTP cache. Component code is requested at an address that does not change with the code and is answered with `Cache-Control: private, max-age=31536000, immutable`; the browser never rechecks it. The server serves new code about 5 seconds after a deploy. The Session Setting for persistent browser caching is not involved (it was already off).
+- **Fix:** a deterministic recipe and tool. `docs/tools/refresh-cached-component-code.js` refreshes the cached code, then one plain reload runs the new code (tested with a control under the same conditions that showed the old code). `docs/tools/deploy-and-verify.ps1` first proves that the org holds the code. Steps and measurements: `docs/testing/browser-testing-playbook.md`.
+- **Not a product defect:** it concerns how fresh code shows up in a browser, not what is deployed. RL-2 holds the one product-side question.

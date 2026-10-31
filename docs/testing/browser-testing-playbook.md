@@ -143,10 +143,21 @@ Alias `dxtemplates-scratch-30d`, user `test-theng94s5l6s@example.com`, URL `http
 - When the corporate DNS cannot resolve the scratch org host from PowerShell or curl (browser still works), read an Attachment in an anonymous Apex run: `EncodingUtil.base64Encode(body)`, print it in 12,000 character `System.debug` chunks, rebuild the file with `[Convert]::FromBase64String`, then run `readpdf.mjs`.
 - A table header in the Related Objects editor shows its tick and cross buttons only after a second click on it.
 
-## Stale component after a deploy (2026-10-31)
+## Stale component after a deploy (root cause found 2026-10-31)
 
-After `sf project deploy` the browser can run the OLD component for two or three reloads, even after clearing storage. The cause is not known yet; it is tracked as RL-1 in [../roadmap/review-later.md](../roadmap/review-later.md).
+**What happens:** after `sf project deploy` a plain reload keeps running the OLD component. It is not the server and not the Session Setting (that is off in this org): it is the browser's HTTP cache. Lightning loads the code of the page's top component (the DxTemplates tab: `markup://DxCPQ:dxTemplateSetup`, which includes the designer and all section editors) from `/auraCmpDef?...&_def=markup://DxCPQ:<name>&_cl=<number>&_uid=LATEST`. That address does not change when the code changes (`_cl` is the `ccv` value in the page's Aura settings and stayed the same through 8 deploys), and the server answers with `Cache-Control: private, max-age=31536000, immutable`: keep for a year, never recheck, not even on reload. The server itself serves the new code about 5 seconds after the deploy (measured).
 
-1. Find out which side is stale first: `.docs	oolsdeploy-and-verify.ps1 <component>[,<component>]` deploys and compares every `.js`, `.html` and `.css` file with the source stored in the org (tooling API `LightningComponentResource`). `MATCH` means the org has the new code and the browser is the problem; `DIFFERS` means the deploy failed.
-2. The Session Setting "Enable secure and persistent browser caching" is already off in this scratch org (owner, 2026-10-31), so it is not the cause here. (For other orgs: Setup > Session Settings; a scratch org definition cannot set it.)
-3. Clear localStorage, sessionStorage, IndexedDB and the Cache API in the page and reload, up to three times; then check a property that only the new code has (for example a lookup's `whereClause`) instead of guessing.
+**Evidence (marker experiment with a hidden span in the designer, EXP1 to EXP8):**
+- The server served the new marker 5 seconds after the org saved it.
+- The browser cache entry for the exact address held the old marker.
+- Refreshing that one entry with `fetch(address, {cache: 'reload'})` made the next plain reload show the new marker; without the refresh the plain reload showed the old one (control, same conditions).
+- Clearing localStorage, sessionStorage, IndexedDB and the Cache API does not touch the HTTP cache, which is why those steps never worked reliably.
+- A hard reload (Ctrl+Shift+R) worked 3 times out of 4 (probably because the code is requested after the page's load event, which a hard reload may not cover); do not rely on it.
+
+**Recipe after every deploy:**
+1. `.\docs\tools\deploy-and-verify.ps1 <component>`: MATCH means the org has the code (otherwise the deploy failed).
+2. In the page, run `docs/tools/refresh-cached-component-code.js` (it refreshes the cached code of `dxTemplateSetup`; pass other top-level component names for other pages).
+3. Reload the page normally. The new code runs on the first reload.
+4. Manually, without the snippet: open Chrome DevTools with Network > "Disable cache" ticked while testing (standard for Lightning development).
+
+Open follow-ups are in [../roadmap/review-later.md](../roadmap/review-later.md) (RL-2).
