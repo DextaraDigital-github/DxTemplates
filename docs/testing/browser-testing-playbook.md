@@ -142,3 +142,11 @@ Alias `dxtemplates-scratch-30d`, user `test-theng94s5l6s@example.com`, URL `http
 - A saved Related Objects section needs 5 to 15 s to open completely on a cold load; wait for the category box before acting.
 - When the corporate DNS cannot resolve the scratch org host from PowerShell or curl (browser still works), read an Attachment in an anonymous Apex run: `EncodingUtil.base64Encode(body)`, print it in 12,000 character `System.debug` chunks, rebuild the file with `[Convert]::FromBase64String`, then run `readpdf.mjs`.
 - A table header in the Related Objects editor shows its tick and cross buttons only after a second click on it.
+
+## Stale component after a deploy (2026-10-31)
+
+After `sf project deploy` the browser can run the OLD component for two or three reloads, even after clearing storage. Lightning caches component code in the browser ("secure and persistent browser caching").
+
+1. Find out which side is stale first: `.\docs\tools\deploy-and-verify.ps1 <component>[,<component>]` deploys and compares every `.js`, `.html` and `.css` file with the source stored in the org (tooling API `LightningComponentResource`). `MATCH` means the org has the new code and the browser is the problem; `DIFFERS` means the deploy failed.
+2. Switch the cache off for development (a person does this once per org, in Setup; Salesforce documents it for sandboxes and Developer orgs): Setup > Session Settings > untick "Enable secure and persistent browser caching to improve performance" > Save. This cannot be set from the scratch org definition (the retrieved Security settings have no field for it) and it slows Lightning down, so tick it again for performance checks. Reference: https://developer.salesforce.com/docs/platform/lwc/guide/debug-disable-caching.html
+3. Without that setting: clear localStorage, sessionStorage, IndexedDB and the Cache API in the page and reload, up to three times; then check a property that only the new code has (for example a lookup's `whereClause`) instead of guessing.

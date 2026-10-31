@@ -184,6 +184,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
   showcontextdetails = false; // Flag to indicate whether to show the context details section.
   selectedSectionRecordID = ''; // ID of the selected section record.
   isconnectedcalledonLoad = false; // Flag to indicate whether connected is called on load.
+  sectionsRequestId = 0; // Counts the server loads of the sections; see refreshSections.
   showrelatedobjectdetails = false; // Flag to indicate whether to show related object details section.
   activateTemplateLabel = 'Activate'; // Label for activating the template.
   @track showPreview = false; // Flag to indicate whether to show/hide the preview.
@@ -820,8 +821,14 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
       this.optionsList = [];
       this.isLoaded2 = true;
       this.firstsectionrecord = '';
+      // Only the answer to the latest request may fill the list: when another template is selected while this one is
+      // still loading, the late answer would otherwise add its sections to the new template's list.
+      const requestId = ++this.sectionsRequestId;
       getAllDocumentTemplateSections({ docTempId: this.documenttemplaterecordid })
         .then(result => {
+          if (requestId !== this.sectionsRequestId) {
+            return;
+          }
           //console.log('getAllDocumentTemplateSections result --> ', result);
           if (result != null) {
             if(result.length > 0 ){
@@ -952,7 +959,9 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
 
         })
         .catch(error => {
-          this.isLoaded2 = false;
+          if (requestId === this.sectionsRequestId) {
+            this.isLoaded2 = false;
+          }
           let tempError = error.toString();
           let errorMessage = error.message || 'Unknown error message';
           createLog({ recordId: '', className: 'templateDesignerCMP LWC Component - connectedCallback()', exceptionMessage: errorMessage, logData: tempError, logType: 'Exception' });

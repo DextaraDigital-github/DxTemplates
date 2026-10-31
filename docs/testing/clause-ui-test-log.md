@@ -36,7 +36,7 @@ How a Clause section works: picking a clause copies its body into the section's 
 | U-CL3 | The lookup list box shows only about two rows and scrolls inside a small box; the clause body is not previewed before picking. |
 | U-CL4 | Both "Update" (next to the name) and "Save" (bottom) save the section; the section list shows an unnamed "Clause" entry until the first save. |
 | U-CL5 | The section is saved with `Document_Clause__c` as text with quotation marks and Apex strips them (`arrOfStr[1]`); fragile, but works. |
-| U-CL6 | Designer: if another template is selected while the first template's sections are still loading, the section list shows the sections of both templates merged (seen with "ZZ Clone RO 2", whose sections have the same names). The data was not affected. To fix in the designer cycle. |
+| U-CL6 | Designer: if another template is selected while the first template's sections are still loading, the section list shows the sections of both templates merged (seen with "ZZ Clone RO 2", whose sections have the same names). The data was not affected. FIXED (2026-10-31): `refreshSections` now numbers its server loads and ignores the answer of any request that is no longer the latest; Jest test "lists only the sections of the template selected last when an earlier template answers late" failed first; browser: switching templates during the load and three templates in quick succession each show only the selected template's sections. |
 
 ## Not tested yet
 

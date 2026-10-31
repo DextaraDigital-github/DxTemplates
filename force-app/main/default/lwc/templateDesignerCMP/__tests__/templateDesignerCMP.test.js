@@ -176,6 +176,34 @@ describe('c-template-designer-c-m-p', () => {
         expect(getClassNames).toHaveBeenCalledTimes(1);
     });
 
+    // Selecting a second template while the first one was still loading merged the sections of both into one list:
+    // every answer pushed its sections into the same shared array.
+    it('lists only the sections of the template selected last when an earlier template answers late', async () => {
+        const element = await mountLoaded();
+        const own = (Id, name) => [
+            section(`${Id}HEADER`, 'Header', 1, 'Header'),
+            section(`${Id}CONTEXT`, 'Context', 2, name),
+            section(`${Id}FOOTER`, 'Footer', 3, 'Footer')
+        ];
+        let releaseFirst;
+        const slowFirst = new Promise(resolve => { releaseFirst = () => resolve(own('a01A', 'Section of A')); });
+        getAllDocumentTemplateSections.mockReturnValueOnce(slowFirst).mockResolvedValueOnce(own('a01B', 'Section of B'));
+
+        element.handleConnectedCallback({ Id: 'a00A', DxCPQ__Related_To_Type__c: 'Account' });
+        element.handleConnectedCallback({ Id: 'a00B', DxCPQ__Related_To_Type__c: 'Account' });
+        await flush();
+        jest.advanceTimersByTime(2500);
+        await flush();
+        releaseFirst();
+        await flush();
+        jest.advanceTimersByTime(2500);
+        await flush();
+
+        const listed = [...element.shadowRoot.querySelectorAll('.grabable')].map(item => item.textContent);
+        expect(listed.some(text => text.includes('Section of B'))).toBe(true);
+        expect(listed.some(text => text.includes('Section of A'))).toBe(false);
+    });
+
     it('tells every section editor about activation, in order, and then activates the template', async () => {
         const element = await mountLoaded();
         element.isSaved = true;
