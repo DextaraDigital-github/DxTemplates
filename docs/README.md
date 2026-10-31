@@ -12,6 +12,7 @@ Measured against branch `dev-active-managed`, commit `b99ae1f`, on 2026-10-29. E
 | [assessment/performance-findings.md](assessment/performance-findings.md) | See why first load is slow (hypotheses from code, measurement pending). |
 | [roadmap/cleanup-log.md](roadmap/cleanup-log.md) | Follow each cleanup batch: what changed, how it was verified, what was not covered. |
 | [testing/baseline/README.md](testing/baseline/README.md) | Use the PDF regression baselines (9 templates) and their limits. |
+| [roadmap/review-later.md](roadmap/review-later.md) | Items the owner asked to review later (open and closed), starting with the stale component after a deploy. |
 | [roadmap/refactoring-plan.md](roadmap/refactoring-plan.md) | Follow the phased plan to refactor safely (tests first, then split the large components). |
 | [research/parked-multi-framework-notes.md](research/parked-multi-framework-notes.md) | Facts gathered about React/Angular on Salesforce and 2GP. **Parked:** no recommendation, to be discussed after the existing-code work. |
 | [testing/browser-testing-playbook.md](testing/browser-testing-playbook.md) | **Start here for any UI test:** fast start, timings, tab handling, recipes, pitfalls, how to run an experiment, Jest commands. |

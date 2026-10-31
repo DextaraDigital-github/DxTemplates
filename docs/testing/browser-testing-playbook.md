@@ -145,8 +145,8 @@ Alias `dxtemplates-scratch-30d`, user `test-theng94s5l6s@example.com`, URL `http
 
 ## Stale component after a deploy (2026-10-31)
 
-After `sf project deploy` the browser can run the OLD component for two or three reloads, even after clearing storage. Lightning caches component code in the browser ("secure and persistent browser caching").
+After `sf project deploy` the browser can run the OLD component for two or three reloads, even after clearing storage. The cause is not known yet; it is tracked as RL-1 in [../roadmap/review-later.md](../roadmap/review-later.md).
 
-1. Find out which side is stale first: `.\docs\tools\deploy-and-verify.ps1 <component>[,<component>]` deploys and compares every `.js`, `.html` and `.css` file with the source stored in the org (tooling API `LightningComponentResource`). `MATCH` means the org has the new code and the browser is the problem; `DIFFERS` means the deploy failed.
-2. Switch the cache off for development (a person does this once per org, in Setup; Salesforce documents it for sandboxes and Developer orgs): Setup > Session Settings > untick "Enable secure and persistent browser caching to improve performance" > Save. This cannot be set from the scratch org definition (the retrieved Security settings have no field for it) and it slows Lightning down, so tick it again for performance checks. Reference: https://developer.salesforce.com/docs/platform/lwc/guide/debug-disable-caching.html
-3. Without that setting: clear localStorage, sessionStorage, IndexedDB and the Cache API in the page and reload, up to three times; then check a property that only the new code has (for example a lookup's `whereClause`) instead of guessing.
+1. Find out which side is stale first: `.docs	oolsdeploy-and-verify.ps1 <component>[,<component>]` deploys and compares every `.js`, `.html` and `.css` file with the source stored in the org (tooling API `LightningComponentResource`). `MATCH` means the org has the new code and the browser is the problem; `DIFFERS` means the deploy failed.
+2. The Session Setting "Enable secure and persistent browser caching" is already off in this scratch org (owner, 2026-10-31), so it is not the cause here. (For other orgs: Setup > Session Settings; a scratch org definition cannot set it.)
+3. Clear localStorage, sessionStorage, IndexedDB and the Cache API in the page and reload, up to three times; then check a property that only the new code has (for example a lookup's `whereClause`) instead of guessing.

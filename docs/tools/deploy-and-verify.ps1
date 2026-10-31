@@ -48,8 +48,7 @@ foreach ($name in $Component) {
 if ($allMatch) {
     Write-Host ''
     Write-Host 'The org holds the local code. If the page still behaves the old way, the browser is serving a cached copy:' -ForegroundColor Yellow
-    Write-Host '  1. Best fix, once per org (a person does this in Setup): Session Settings > untick "Enable secure and persistent browser caching to improve performance" > Save.' -ForegroundColor Yellow
-    Write-Host '  2. Otherwise clear localStorage, sessionStorage, IndexedDB and the Cache API in the page, then reload; repeat up to three times.' -ForegroundColor Yellow
+    Write-Host '  Clear localStorage, sessionStorage, IndexedDB and the Cache API in the page, then reload; it can take up to three reloads. Cause not known yet: docs/roadmap/review-later.md (RL-1).' -ForegroundColor Yellow
 }
 else {
     Write-Host ''
