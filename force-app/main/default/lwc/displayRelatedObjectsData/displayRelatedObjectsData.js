@@ -34,6 +34,7 @@ export default class DisplayRelatedObjectsData extends LightningElement {
      // Chart Params
     chartLabel = 'Quote Chart';
     chartClass = 'page-break';
+    chartStyle = '';
     dateFormatStr = '';
     timeFormatStr = '';
     numberFormat;
@@ -63,6 +64,8 @@ export default class DisplayRelatedObjectsData extends LightningElement {
                     this.barChartColor = parsedjson.barChartColor;
                     this.currencyLabel = "USD";
                     this.recordDataFontFamily = parsedjson.catFontFam;
+                    // The chart text follows the font of the table header (the PDF engine prints Times otherwise).
+                    this.chartStyle = 'font-family: ' + parsedjson.headFontFam + ';';
                     
                     parsedjson.headers.forEach((element) => {
                         this.tableheaders.push(element);
@@ -91,7 +94,7 @@ export default class DisplayRelatedObjectsData extends LightningElement {
                                     cellList.push(cellData);
                                 }
                             }
-                            rowData.columns = cellList;
+                            rowData.columns = cellList.map((cell, position) => ({ ...cell, key: rowData.rownumber + '-' + position }));
                             this.tablerows.push(rowData);
                         } else if (element.type == "Category") {
                             rowData.rowType = 'Category';
@@ -105,7 +108,7 @@ export default class DisplayRelatedObjectsData extends LightningElement {
                             cellData.width = 'auto';
                             cellData.style = 'border: 1px solid black ; background-color:' + parsedjson.catBgClr + ' ; color:' + parsedjson.catFontClr + '; font-size:'+ parsedjson.catFontSize + '; font-family:' + parsedjson.catFontFam + ';';
                             cellList.push(cellData);
-                            rowData.columns = cellList;
+                            rowData.columns = cellList.map((cell, position) => ({ ...cell, key: rowData.rownumber + '-' + position }));
                             this.tablerows.push(rowData);
                             this.subtotalLabel.push(cellData.value);
                         } else if (element.type == "Total" || element.type == "SubTotal") {
@@ -171,7 +174,7 @@ export default class DisplayRelatedObjectsData extends LightningElement {
                                 }
                                 cellList.push(cellData);
                             }
-                            rowData.columns = cellList;
+                            rowData.columns = cellList.map((cell, position) => ({ ...cell, key: rowData.rownumber + '-' + position }));
                             this.tablerows.push(rowData);
                         }
                     });

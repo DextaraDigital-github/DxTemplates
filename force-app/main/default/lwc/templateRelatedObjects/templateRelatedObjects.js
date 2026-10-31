@@ -17,6 +17,9 @@ import gettemplatesectiondata from '@salesforce/apex/SaveDocumentTemplatesection
 import resetRulesForTemplate from '@salesforce/apex/RelatedObjectsClass.handleTemplateRuleResetCondition';
 import saveDocumentTemplateSectionDetails from '@salesforce/apex/SaveDocumentTemplatesection.saveDocumentTemplateSectionDetails';
 
+// Field types the Sub Total, Grand Total and chart can add up (the server sums them as Decimal).
+const TOTALABLE_DATA_TYPES = ['NUMBER', 'CURRENCY', 'DOUBLE', 'INTEGER', 'LONG', 'PERCENT'];
+
 export default class TemplateRelatedObjects extends NavigationMixin(LightningElement) {
 
   @api pdfLinks;
@@ -74,6 +77,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
   dateFormatvalue = '564/';
   timeFormatvalue = '124';
   numFormatvalue = '2';
+  pendingUi = [];
   curFormatvalue = '2';
   @track renderedData = false;
 
@@ -437,6 +441,77 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
           .catch(error => {});
 
       this.newfontsize();
+      this.applyPendingUi();
+  }
+
+  /*
+    A loaded section sets some values on elements (checkboxes, the pickers) that are only rendered after the data
+    has arrived. Those settings wait here and are applied as soon as their element exists, instead of after a fixed delay.
+  */
+  setWhenRendered(selector, apply) {
+      this.pendingUi.push({ selector, apply });
+      this.applyPendingUi();
+  }
+
+  applyPendingUi() {
+      this.pendingUi = this.pendingUi.filter(pending => {
+          const element = this.template.querySelector(pending.selector);
+          if (!element) {
+              return true;
+          }
+          pending.apply(element);
+          return false;
+      });
+  }
+
+  /*
+    Puts the fields of a saved section back into the chosen-fields list, in the order they were saved. A field of a
+    parent object (path such as Account.AnnualRevenue) needs a second Apex call, so the list is built when all calls are done.
+  */
+  restoreAddedFields(parsedJson) {
+      const available = this.lstOfObjects[0].fieldList;
+      const restored = [];
+      const parentLoads = [];
+
+      parsedJson.tablelistValues.forEach((path, position) => {
+          if (path.includes('.')) {
+              const relationshipName = path.split('.')[0];
+              const lookup = this.lstOfObjects[0].fieldWrap.find(field => field.relationshipName == relationshipName);
+              if (lookup) {
+                  parentLoads.push(getFields({ selectedObject: lookup.sObjectName }).then(parentFields => {
+                      const parentField = parentFields.find(field => field.apiName.toLowerCase() == path.split('.')[1].toLowerCase());
+                      if (parentField) {
+                          const label = lookup.name.substring(0, lookup.name.length - 1) + '.' + parentField.name;
+                          restored[position] = { label, value: path, dataType: parentField.dataType };
+                      }
+                  }));
+              }
+              return;
+          }
+          const index = available.findIndex(field => field.value.toLowerCase() == path.toLowerCase());
+          if (index > -1) {
+              restored[position] = available[index];
+              available.splice(index, 1);
+          }
+      });
+
+      return Promise.all(parentLoads).then(() => {
+          restored.filter(field => field).forEach(field => {
+              this.lstofaddedfields.push(field);
+              if (TOTALABLE_DATA_TYPES.includes(field.dataType)) {
+                  this.showNumberFields.push(field);
+                  this.showCalculatorFields = true;
+              }
+              // The pills show the labels, the save writes the values: restore both (R-D6, R-D7).
+              if (parsedJson.subTotal.some(key => key.toLowerCase() == field.value.toLowerCase())) {
+                  this.allNumericalFields.push(field.label);
+                  this.allnumValues.push(field.value);
+              }
+          });
+          // The Sub Total and chart lists offer only what is not chosen yet (U-R13).
+          this.showNumberFieldsOptions = [...this.showNumberFields];
+          this.modifyOptions();
+      });
   }
 
   // Changes by Kapil 
@@ -574,6 +649,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
       this.selectchildpicklist = '';
       this.showPicklist = false;
       this.showNumberFields = [];
+      this.pendingUi = [];
       this.subtotalField = [];
       this.numfieldvalue = '';
       this.newPage = false;
@@ -731,12 +807,14 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                       this.showPicklist = true;
                       this.value = parsedJson.mainChildObject;
                       var attribute = [];
-                      var attribute1 = [];
                       this.lstOfObjects = [];
                       this.loadUp = false;
                       this.lstofaddedfields = [];
                       this.showNumberFields = [];
                       this.showCalculatorFields = false;
+
+                      // What the loaded section sets on elements that may not be rendered yet; see applyPendingUi.
+                      this.pendingUi = [];
 
                       if (parsedJson.mainChildObject) {
                           attribute.push({
@@ -744,21 +822,11 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                               value: parsedJson.mainChildObject,
                               selected: true
                           });
-                          setTimeout(() => {
-                              this.template.querySelector('[data-id="childObject"]').setupOptions(attribute);
-                          }, 2000);
+                          this.setWhenRendered('[data-id="childObject"]', el => el.setupOptions(attribute));
                       }
 
                       if (parsedJson.grouping) {
                           this.showPicklist = true;
-                          attribute1.push({
-                              label: parsedJson.grouping,
-                              value: parsedJson.grouping,
-                              selected: true
-                          });
-                          setTimeout(() => {
-                              this.template.querySelector('[data-id="picklist"]').setupOptions(attribute1);
-                          }, 1000);
                       }
 
                       //this.handlegettingfields(parsedJson.mainChildObject, true, parsedJson.tablelistLabels);
@@ -773,85 +841,27 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                               values: [parsedJson.mainChildObject]
                           }
                       };
-                      this.handleObjectselection(cust);
+                      const objectLoaded = this.handleObjectselection(cust);
 
                       // Added Fields
                       this.loadUp = true;
                       this.allNumericalFields = [];
                       this.allnumValues = [];
 
-                      setTimeout(() => {
-                          for (let j = 0; j < parsedJson.tablelistValues.length; j++) {
-                              let jump = true;
-
-                              for (let i = 0; i < this.lstOfObjects[0].fieldList.length; i++) {
-                                  if (this.lstOfObjects[0].fieldList[i].value.toLowerCase() == parsedJson.tablelistValues[j].toLowerCase()) {
-                                      this.lstofaddedfields.push(this.lstOfObjects[0].fieldList[i]);
-
-                                      if (this.lstOfObjects[0].fieldList[i].dataType == "NUMBER" || this.lstOfObjects[0].fieldList[i].dataType == "CURRENCY" || this.lstOfObjects[0].fieldList[i].dataType == "DOUBLE") {
-                                          this.showNumberFields.push(this.lstOfObjects[0].fieldList[i]);
-                                          this.showCalculatorFields = true;
-                                      }
-
-                                      parsedJson.subTotal.forEach(key => {
-                                          if (key.toLowerCase() == this.lstOfObjects[0].fieldList[i].value.toLowerCase()) {
-                                              this.allNumericalFields.push(this.lstOfObjects[0].fieldList[i].label);
-                                              // The save writes the values, the pills show the labels: restore both (R-D6).
-                                              this.allnumValues.push(this.lstOfObjects[0].fieldList[i].value);
-                                          }
-                                      });
-                                      this.lstOfObjects[0].fieldList.splice(i, 1);
-                                      break;
-                                  }
-
-                                  if (parsedJson.tablelistValues[j].includes('.') && jump) {
-                                      let tempStr = parsedJson.tablelistValues[j].replace('.', '*');
-                                      let tempCount = tempStr.indexOf('*');
-                                      let strTemp = tempStr.replace(tempStr.substring(tempCount), '');
-
-                                      let referenceObject = this.lstOfObjects[0].fieldWrap.filter((obj) => obj.relationshipName == strTemp);
-
-                                      if (referenceObject.length > 0 && jump) {
-                                          getFields({
-                                                  selectedObject: referenceObject[0].sObjectName
-                                              })
-                                              .then(result => {
-                                                  let tempVar = tempStr.replace(tempStr.substring(0, tempCount + 1), '');
-                                                  for (let key of result) {
-                                                      if (tempVar.toLowerCase() == key.apiName.toLowerCase() && jump) {
-                                                          if (this.lstofaddedfields.length < this.tableheaders.length) {
-                                                              this.lstofaddedfields.push({
-                                                                  'label': referenceObject[0].name.substring(0, referenceObject[0].name.length - 1) + '.' + key.name,
-                                                                  "value": parsedJson.tablelistValues[j],
-                                                                  "dataType": key.dataType
-                                                              });
-                                                          }
-                                                          jump = false;
-                                                          if (key.dataType == "NUMBER" || key.dataType == "CURRENCY" || key.dataType == "DOUBLE") {
-                                                              this.showNumberFields.push({
-                                                                  'label': referenceObject[0].name.substring(0, referenceObject[0].name.length - 1) + '.' + key.name,
-                                                                  "value": parsedJson.tablelistValues[j],
-                                                                  "dataType": key.dataType
-                                                              });
-                                                              this.showCalculatorFields = true;
-                                                          }
-                                                          // Once per matched field, label and value together (R-D6, R-D7); this used to run for every
-                                                          // field of the parent object and never restored the value.
-                                                          if (parsedJson.subTotal.includes(parsedJson.tablelistValues[j])) {
-                                                              this.allNumericalFields.push(referenceObject[0].name.substring(0, referenceObject[0].name.length - 1) + '.' + key.name);
-                                                              this.allnumValues.push(parsedJson.tablelistValues[j]);
-                                                          }
-                                                      }
-                                                  }
-                                              })
-                                              .catch((error) => {
-                                                  console.log(error);
-                                              })
-                                      }
-                                  }
-                              }
+                      // The field list comes from Apex: the saved fields are restored when it has arrived, not after a fixed delay (U-R14).
+                      objectLoaded.then(() => {
+                          if (parsedJson.grouping) {
+                              const groupingOption = this.getGroupingValues.find(option => option.value === parsedJson.grouping);
+                              this.setWhenRendered('[data-id="picklist"]', el => el.setupOptions([{
+                                  label: groupingOption ? groupingOption.label : parsedJson.grouping,
+                                  value: parsedJson.grouping,
+                                  selected: true
+                              }]));
                           }
-                      }, 1000);
+                          return this.restoreAddedFields(parsedJson);
+                      }).catch(error => {
+                          console.log(error);
+                      });
 
                       this.selectchildpicklist = parsedJson.grouping;
                       if (parsedJson.grouping != null && parsedJson.grouping != "") {
@@ -889,15 +899,11 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
 
                       // Serial Number On Load
                       this.SerialNumber = parsedJson.SerialNumber;
-                      setTimeout(() => {
-                          this.template.querySelector('[data-id="serialNumber"]').checked = parsedJson.SerialNumber;
-                      });
+                      this.setWhenRendered('[data-id="serialNumber"]', el => { el.checked = parsedJson.SerialNumber; });
 
                       // New Page on Load
                       this.newPage = parsedJson.newPage;
-                      setTimeout(() => {
-                          this.template.querySelector('[data-id="newPageRO"]').checked = parsedJson.newPage;
-                      });
+                      this.setWhenRendered('[data-id="newPageRO"]', el => { el.checked = parsedJson.newPage; });
 
                       //Chart things On Load
                       if (parsedJson.subTotal != null && parsedJson.subTotal != "" && parsedJson.displayChart == true) {
@@ -907,25 +913,9 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                           this.chartControl = true;
                           this.showCalculatorFields = true;
 
-                          setTimeout(() => {
-                              this.template.querySelector('[data-id="chartBox"]').checked = parsedJson.displayChart;
-                          });
-
-                          let temp = [];
-                          temp.push({
-                              'label': this.subtotalFieldValue,
-                              'value': this.subtotalFieldValue,
-                              selected: true
-                          });
-                          setTimeout(() => {
-                              this.template.querySelector('[data-id="subtotalFieldValue"]').options = temp
-                          });
-                          setTimeout(() => {
-                              this.template.querySelector('[data-id="subtotalFieldValue"]').value = this.subtotalFieldValue
-                          });
-                          setTimeout(() => {
-                              this.template.querySelector('[data-id="newChartPage"]').checked = parsedJson.chartNewPage;
-                          });
+                          this.setWhenRendered('[data-id="chartBox"]', el => { el.checked = parsedJson.displayChart; });
+                          // The chart field list (subtotalField) is filled by restoreAddedFields; the value is bound.
+                          this.setWhenRendered('[data-id="newChartPage"]', el => { el.checked = parsedJson.chartNewPage; });
                       } else {
                           this.allnumValues = []
                           this.displayChart = false;
@@ -946,6 +936,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
     Based on the user selection on "Object Fields", the picklist fields available in that object will be displayed in another picklist
   */
   handleObjectselection(event) {
+      let loaded = Promise.resolve();
       this.showPicklist = false;
       let val = event.detail.values;
 
@@ -966,25 +957,18 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
           this.tabsection = [];
           this.getGroupingValues = [];
 
-          getGroupingOptions({
+          const groupingLoaded = getGroupingOptions({
                   selectedObject: this.selChildObjName
               })
               .then((result) => {
-                  let mp = result;
                   this.getpicklistdata = result;
-                  this.showPicklist = true;
-                  for (let temp in mp) {
-                      this.getGroupingValues.push({
-                          'label': temp,
-                          'value': temp
-                      });
-                  }
+                  return result;
               })
               .catch((error) => {
                   console.log(error);
-              })
+              });
 
-          getFields({
+          const fieldsLoaded = getFields({
               selectedObject: this.selChildObjName
           }).then(result => {
               if (result) {
@@ -1008,11 +992,27 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
                   }
                   this.displayfields = true;
               }
+              return result;
           }).catch(error => {
               console.log('error while retrieving the fields' + error)
-          })
+          });
+
+          // The Category list shows the field labels (the picklist API names only as values), so it waits for both calls (U-R2).
+          loaded = Promise.all([groupingLoaded, fieldsLoaded]).then(([groups, fields]) => {
+              const labelOf = {};
+              (fields || []).forEach(field => { labelOf[field.apiName.toLowerCase()] = field.name; });
+              const options = [];
+              for (let temp in groups) {
+                  options.push({ 'label': labelOf[temp.toLowerCase()] || temp, 'value': temp });
+              }
+              this.getGroupingValues = options;
+              if (groups) {
+                  this.showPicklist = true;
+              }
+          });
       }
       this.handleRuleWrapperMaking();
+      return loaded;
   }
 
   /*
@@ -1362,8 +1362,7 @@ export default class TemplateRelatedObjects extends NavigationMixin(LightningEle
       this.showNumberFields = [];
       if (bool) {
           for (let i = 0; i < this.lstofaddedfields.length; i++) {
-              if (this.lstofaddedfields[i].dataType == 'DOUBLE' || this.lstofaddedfields[i].dataType == 'CURRENCY' ||
-                  this.lstofaddedfields[i].dataType == 'NUMBER') {
+              if (TOTALABLE_DATA_TYPES.includes(this.lstofaddedfields[i].dataType)) {
                   this.showNumberFields.push(this.lstofaddedfields[i]);
               }
           }
@@ -2222,13 +2221,16 @@ let ruleIdtoReset = this.ruleCondition == true ? this.ruleIdCreated: this.visibi
 
     //code added by Bhavya for adding Custom Font-family list - compatible with VF PDF generation
     get fontFamilies() {
-        return [
+        const families = [
             { label: 'Times New Roman', value: 'serif' },
             { label: 'Arial', value: 'sans-serif' },
             { label: 'Serif', value: 'serif' },
             { label: 'Verdana', value: DEFAULT_FONT_FAMILY },
             { label: 'Courier', value: COURIER_FONT_FAMILY },
         ];
+        // Times New Roman and Serif share a value: only the first match is shown as selected (U-R9).
+        const current = families.findIndex(family => family.value === this.fontfamily);
+        return families.map((family, index) => ({ ...family, selected: index === current }));
     }
 
     handleFontFamilySelection(event){

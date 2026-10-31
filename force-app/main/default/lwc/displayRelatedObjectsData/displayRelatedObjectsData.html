@@ -27,7 +27,7 @@
 					<template for:each={tablerows} for:item="rowvar">
 						<tr key={rowvar.rownumber}>
 							<template for:each={rowvar.columns} for:item="colvar">
-								<td scope="col" key={colvar} style={colvar.style} colspan={colvar.colspan}
+								<td scope="col" key={colvar.key} style={colvar.style} colspan={colvar.colspan}
 									max-width={colvar.width}>
 
 									<template if:true={colvar.imgcell}>
@@ -72,7 +72,7 @@
 			</table>
 			</br>
 			<template if:true={displayChart}>
-				<table width="100%" height="auto" class={chartClass}>
+				<table width="100%" height="auto" class={chartClass} style={chartStyle}>
 					<tr>
 						<td width="75%" style="text-align: center;">
 							<h4>{chartLabel}</h4>

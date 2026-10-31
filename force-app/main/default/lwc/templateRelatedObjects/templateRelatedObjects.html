@@ -149,7 +149,7 @@
 					<div class="slds-col">
 						<select name="font-family" id="font-family" onchange={handleFontFamilySelection} label="Font Family" style="width: 145px;border-radius: 4px;padding: 5px;">
 							<template for:each={fontFamilies} for:item="item" for:index="index">
-								<option value={item.value} key={item.label}  >{item.label}</option>
+								<option value={item.value} key={item.label} selected={item.selected}>{item.label}</option>
 							</template>
 						</select>
 					</div>
