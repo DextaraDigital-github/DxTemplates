@@ -42,3 +42,9 @@ Merge field insert; image insert; the visibility filter dialog; Delete; New sect
 - After a deploy the browser can keep running the old component for several reloads. What worked: clear the page's local storage and IndexedDB from the page (`localStorage.clear()`, delete the databases), then reload.
 - The first Update click right after a page load did not save; click again and check the record's LastModifiedDate.
 - `javascript_tool` output containing HTML attribute text can be blocked; return counts and booleans instead.
+
+## Added during the Clause cycle (2026-10-31)
+
+| # | Defect | Status |
+|---|---|---|
+| C-D7 | (Found on the Clause screen, same component.) Every save ended with `this.newpage = false` while the New Page checkbox stayed ticked, so a second Save or Update without reopening the section saved it without New Page and without the page-break wrapper. | FIXED, Jest and browser-verified; details in `docs/testing/clause-ui-test-log.md`. |
