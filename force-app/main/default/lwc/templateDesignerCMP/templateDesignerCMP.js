@@ -1103,6 +1103,7 @@ export default class TemplateDesignerCMP extends NavigationMixin(LightningElemen
    * Method to open the edit template screen. It also triggers the getSavedDocTempWatermarkData() to get the information of the watermark if saved any on this selected template
    */
   handleEditTemplate() {
+    this.editTemp = {}; // a choice made in an earlier visit must not be sent again
     var attribute = [];
     var attribute1 = [];
     this.showAddNewTemplate = false;

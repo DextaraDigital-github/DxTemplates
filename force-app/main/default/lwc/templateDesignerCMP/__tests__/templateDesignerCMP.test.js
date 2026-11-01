@@ -4,6 +4,9 @@ import { calls, reset as resetCalls } from '../../../../../../jest-mocks/designe
 import { getDomainUrl, getClassNames, getFlowNames, getPDFLinks, getAllUserLanguages } from 'c/dxApexCache';
 import getAllDocumentTemplateSections from '@salesforce/apex/SaveDocumentTemplatesection.getAllDocumentTemplateSections';
 import activateTemplate from '@salesforce/apex/SaveDocumentTemplate.activateTemplate';
+import updateTemplateDetails from '@salesforce/apex/SaveDocumentTemplate.updateTemplateDetails';
+import gettemplatedata from '@salesforce/apex/SaveDocumentTemplate.gettemplatedata';
+import getAllPopupMessages from '@salesforce/apex/PopUpMessageSelector.getAllConstants';
 
 // The five section editors are replaced by stubs that record every call the designer makes on them.
 jest.mock('c/templateHeader', () => require('../../../../../../jest-mocks/designer/templateHeaderStub'));
@@ -25,6 +28,10 @@ jest.mock('c/dxApexCache', () => ({
 }));
 
 // Every other Apex method the designer imports.
+jest.mock('@salesforce/apex/PopUpMessageSelector.getAllConstants', () => {
+    const { createApexTestWireAdapter } = require('@salesforce/sfdx-lwc-jest');
+    return { __esModule: true, default: createApexTestWireAdapter(jest.fn()) };
+}, { virtual: true });
 jest.mock('@salesforce/apex/SaveDocumentTemplatesection.saveDocumentTemplateSectionSequences', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
 jest.mock('@salesforce/apex/SaveDocumentTemplatesection.CloneTemplateSection', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
 jest.mock('@salesforce/apex/SaveDocumentTemplatesection.getAllDocumentTemplateSections', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
@@ -228,5 +235,38 @@ describe('c-template-designer-c-m-p', () => {
 
         expect(calls.filter(c => c.method === 'handleActivateTemplate')).toHaveLength(0);
         expect(activateTemplate).not.toHaveBeenCalled();
+    });
+
+    // Edit Properties: a description-only save wiped the template's Apex class / flow because the choice made in an
+    // earlier visit of the dialog (editTemp) was kept and sent again.
+    it('sends no class or flow change when the dialog is saved without touching them, even after an earlier visit', async () => {
+        gettemplatedata.mockResolvedValue([{}]);
+        updateTemplateDetails.mockResolvedValue();
+        const element = await mountLoaded();
+        element.isSaved = true;
+        getAllPopupMessages.emit({ TEMPLATE_DESIGN_UPDATED: " updated" });
+        const open = async () => {
+            element.shadowRoot.querySelector('[title="Edit Properties"]').click();
+            await flush();
+            jest.advanceTimersByTime(1000);
+            await flush();
+        };
+        const save = async () => {
+            const form = element.shadowRoot.querySelector('lightning-record-edit-form');
+            form.dispatchEvent(new CustomEvent('success', { detail: { id: 'a00TEMPLATE', fields: { Name: { value: 'Test Template' }, DxCPQ__Version_Number__c: { value: 1 } } } }));
+            await flush();
+        };
+
+        await open();
+        const search = element.shadowRoot.querySelector('[data-id="object"]');
+        search.dispatchEvent(new CustomEvent('selectedcategoryvalues', { detail: { values: [] } }));
+        await save();
+        updateTemplateDetails.mockClear();
+
+        await open();
+        await save();
+
+        expect(updateTemplateDetails).toHaveBeenCalledTimes(1);
+        expect(updateTemplateDetails.mock.calls[0][0].templateData).toEqual({});
     });
 });
