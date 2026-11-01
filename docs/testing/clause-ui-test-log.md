@@ -41,3 +41,26 @@ How a Clause section works: picking a clause copies its body into the section's 
 ## Not tested yet
 
 Merge field inside a clause body, images in a clause, Delete and visibility filter on a Clause section (same code as Context, covered there), a saved Clause section whose clause was deleted or set inactive later (the editor reads `Document_Clause__r.Name`), Clone of a template with a Clause section.
+
+## Clause leftovers (2026-11-01)
+
+Org: clone "ZZ Clone Ctx", section "ZZ Temp Clause" linked to a throwaway clause "ZZ Temp Clause" (active, body with `{!Account.Name}`, `{!Account.Industry}` and a logo image). The throwaway clause record was deleted again as part of the test (my own test row); the section remains in the clone. Jest: 2 new tests (38 in `templateContentDetails.test.js`).
+
+| # | Test | Result |
+|---|---|---|
+| CL11 | Real PDF (generation path) of a template with that Clause section | Pass. "Dear Datamatics," and "Industry: Technology" print: merge fields inside the clause text are replaced like in a Context section. The image prints (see U-CL7 for its size). |
+| CL12 | Clause set inactive after the section was made; open the section in the designer and Update | Pass. The pill, the text, the merge fields and the image come back and the section saves ("was Saved"). The inactive clause is simply no longer offered by the lookup. |
+| CL13 | Clause deleted after the section was made (lookup is set to empty by the platform, `SetNull`); open the section, Update | FAIL before fix C-D13: red toast "Please select a pre-defined Clause to save this section." and nothing could be saved. After the fix: "Section ... was Saved". |
+| CL14 | Clone template with a Clause section (done in the Context cycle) | Pass: clause link and text identical in the clone. |
+
+| # | Defect | Status |
+|---|---|---|
+| C-D13 | After the clause record was deleted, its sections could not be saved any more (not even to tick New Page): the save insisted on a clause although the section still has its own copy of the text. The only way out was to pick another clause, which overwrites the text. | FIXED: a saved Clause section that lost its clause keeps saving as long as it has text; removing the pill (or picking another clause) restores the old rules (C-D6 test still passes). Jest failed first; browser-verified. |
+
+## Observations for the UI discussion (added)
+
+| # | Observation |
+|---|---|
+| U-CL7 | A picture without a size (the usual result of "Add Image") prints at 150 x 150 pt (a 200 px square) in the PDF for this logo file (169 x 40 px), so it is stretched. The same logo made by the Resize Image dialog prints at exactly the size it was resized to. Explicit width/height attributes in a hand-written test document did not change the printed size in my experiments, so the only reliable way to control the size today is Resize Image; consider resizing automatically when an image is inserted (architect item). |
+| U-CL8 | After a clause is deleted the section shows an empty clause box and no hint that its text is now a detached copy. |
+| U-CL9 | A deleted or inactive clause does not mark its sections in any way; there is no list of "sections using this clause". |

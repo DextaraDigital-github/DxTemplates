@@ -521,6 +521,48 @@ describe('c-template-content-details', () => {
             expect(seen[0].detail).toMatchObject({ title: 'Error', message: 'Please select a pre-defined Clause to save this section.' });
         });
 
+        // C-D13: deleting a clause sets the section's clause to empty (SetNull), and from then on the section could not
+        // be saved at all ("Please select a pre-defined Clause") although it still has its own copy of the text.
+        it('still saves a Clause section whose clause was deleted, keeping its text', async () => {
+            gettemplatesectiondata.mockResolvedValue({
+                ...SECTION, Name: 'ZZ Temp Clause', DxCPQ__Type__c: 'Clause',
+                DxCPQ__Section_Content__c: '<p>Dear {!Account.Name}</p>',
+                DxCPQ__Document_Clause__c: null, DxCPQ__Document_Clause__r: null
+            });
+            const element = mountClause();
+            await flush();
+            element.loadsectionsectionvaluesforedit('a02SECTION');
+            await flush();
+            jest.runAllTimers();
+            await flush();
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saveDocumentTemplateSectionDetails).toHaveBeenCalledTimes(1);
+            expect(saved()).toMatchObject({ Id: 'a02SECTION', DxCPQ__Section_Content__c: '<p>Dear {!Account.Name}</p>' });
+        });
+
+        it('still refuses to save once the user removes the clause pill, even on a section whose clause is gone', async () => {
+            gettemplatesectiondata.mockResolvedValue({
+                ...SECTION, Name: 'ZZ Temp Clause', DxCPQ__Type__c: 'Clause',
+                DxCPQ__Section_Content__c: '<p>Dear</p>', DxCPQ__Document_Clause__c: null, DxCPQ__Document_Clause__r: null
+            });
+            const element = mountClause();
+            await flush();
+            element.loadsectionsectionvaluesforedit('a02SECTION');
+            await flush();
+            jest.runAllTimers();
+            await flush();
+            lookup(element).dispatchEvent(new CustomEvent('removepill'));
+            await flush();
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(saveDocumentTemplateSectionDetails).not.toHaveBeenCalled();
+        });
+
         it('keeps the clause and the edited text when a saved Clause section is opened and saved again', async () => {
             gettemplatesectiondata.mockResolvedValue({
                 ...SECTION, Name: 'ZZ Payment Terms', DxCPQ__Type__c: 'Clause',

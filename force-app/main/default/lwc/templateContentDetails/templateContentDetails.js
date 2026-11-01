@@ -22,6 +22,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
   @track showSectionCss = false;
   sectioncssval = '';
   cssPrefilled = false;
+  clauseGone = false;
   //variables added by Bhavya for Resizing Image in Context Section
   @track showResizeModal = false;
   process = '';
@@ -371,6 +372,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
   /*filter*/
   updateItemEventHandler(event) {
     this.selectedClauseId = undefined;
+    this.clauseGone = false;
     this.clauseId = '';
     this.richtextVal = '';
     this.updatedRichTextVal = this.richtextVal;
@@ -379,6 +381,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
 
   handleClauseSelection(event) {
     this.clauseId = event.detail.value;
+    this.clauseGone = false;
     const clauseIdstring = JSON.stringify(this.clauseId)
     ClauseBody({ inputparam: clauseIdstring })
       .then(result => {
@@ -416,6 +419,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
 
   handleclauseremoval() {
     this.clauseId = '';
+    this.clauseGone = false;
     this.richtextVal = '';
     this.updatedRichTextVal = this.richtextVal;
     this.Recorddetailsnew.Name = '';
@@ -490,7 +494,8 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
       if (this.clauseId != '' && this.clauseId != null) {
         this.Recorddetailsnew.DxCPQ__Document_Clause__c = JSON.stringify(this.clauseId);
       }
-      else {
+      else if (!(this.clauseGone && this.richtextVal)) {
+        // A clause that was deleted later leaves the section with its own copy of the text; that can still be saved.
         clauseCheck = false;
       }
     }
@@ -668,6 +673,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
     this.sectioncssval = '';
     this.cssPrefilled = false;
     this.ukey = (new Date()).getTime();
+    this.clauseGone = false;
     this.Recorddetailsnew.Id = '';
     this.Recorddetailsnew.Name = '';
     this.richtextVal = '';
@@ -761,6 +767,7 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
             this.template.querySelector('c-multi-lookup-component').selectedRecordHandler(tempObj);
             this.ukey = (new Date()).getTime();
           }
+          this.clauseGone = this.Recorddetailsnew.DxCPQ__Type__c == 'Clause' && !result.DxCPQ__Document_Clause__c;
           this.newpage = result.DxCPQ__New_Page__c;
           setTimeout(() => { 
             try{
