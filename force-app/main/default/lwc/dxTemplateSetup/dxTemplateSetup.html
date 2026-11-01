@@ -43,7 +43,7 @@
 				<template if:true={showFirstImportScreen}>
 					<div style="background-color: #ffffff;padding: 1% 16px;">
 						<div>
-							<input type="file" accept="json/*" onchange={handleJSONUpload} class="dx-button">
+							<input type="file" accept=".json,application/json" onchange={handleJSONUpload} class="dx-button">
 							<lightning-textarea name="import" label="Paste JSON" placeholder="paste here..." value={jsonData} onchange={pastedjson}></lightning-textarea>
 						</div>
 						<br>
@@ -58,6 +58,11 @@
 						<div>
 							{errorMessage}
 						</div>
+						<template if:true={importFailed}>
+							<div class="slds-text-align_right" style="padding-top: 16px;">
+								<lightning-button variant="neutral" label="Back" title="Back to the file" onclick={backToImport}></lightning-button>
+							</div>
+						</template>
 						<!-- <div class="slds-text-align_right" style="padding: 16px;">
 							<lightning-button variant="brand" label="Skip" title="Skip" onclick={skipTemplate} style="margin: 6px;"></lightning-button>
 							<lightning-button variant="neutral" label="Create as new version" title="Create as new version" onclick={continueTemplate}></lightning-button>
@@ -66,7 +71,16 @@
 				</template>
 				<template if:true={showTemplateMessage}>
 					<div style="background-color: #ffffff;padding: 1% 16px;">
-						{templateSuccessMessage}
+						<div>{templateSuccessMessage}</div>
+						<template for:each={importSummaryLines} for:item="line">
+							<div key={line}>{line}</div>
+						</template>
+						<template if:true={hasImportWarnings}>
+							<div class="slds-m-top_small"><b>Please check</b></div>
+							<template for:each={importWarnings} for:item="warning">
+								<div key={warning}>{warning}</div>
+							</template>
+						</template>
 					</div>
 					<div class="slds-text-align_right" style="background-color: #ffffff;padding: 1% 16px;">
 						<lightning-button variant="neutral" label="Done" title="Done" onclick={refreshPageAfterCreate}> </lightning-button>

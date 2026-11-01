@@ -1,3 +1,5 @@
+// Used by the install script (PostInstallDataCreation) to create the sample templates. The designer import and export run through
+// TemplateMigration; the create methods below are deliberately not AuraEnabled, because they insert whatever fields they are given.
 public class ImportExportData {
     public class templateWrapper{
         @AuraEnabled
@@ -10,7 +12,6 @@ public class ImportExportData {
         return twrapper;
     }
     
-    @AuraEnabled
     public static List<sObject> allDocTemps(){
         List<Document_Template__c> docTemp= [SELECT id from Document_Template__c WITH SECURITY_ENFORCED];
         return docTemp;
@@ -32,7 +33,6 @@ public class ImportExportData {
         return picklistOptions;
     }
     
-    @AuraEnabled
     public static List<Map<String,String>> templateExternalList(){
 		List<Document_Template__c> docTemp = [SELECT Name, isactive__c, Related_To_Type__c, Version_Number__c, Previously_Active__c, Parent_Template__c, Watermark_Data__c, External_Id__c FROM Document_Template__c WITH SECURITY_ENFORCED order by CreatedDate Desc limit 50000];
         List<Map<String,String>> recordIds = new List<Map<String,String>>();
@@ -45,7 +45,6 @@ public class ImportExportData {
         return recordIds;
     }
     
-    @AuraEnabled
     public static String getAllDocumentTemplatesData(){
         try{
             Map<String, Object> dTMap = new Map<String, Object>();
@@ -92,7 +91,6 @@ public class ImportExportData {
        
     }
     
-    @AuraEnabled
     public static Map<String,Object> getWatermarkContent(List<String> idList){
     	List<ContentVersion> cvLst = [select Id, FirstPublishLocationId,VersionData, FileExtension, FileType, PathOnClient, External_Id__c from ContentVersion where FirstPublishLocationId IN:idList WITH SECURITY_ENFORCED];
         Map<String,Object> holdCVData = new Map<String,Object>();
@@ -107,7 +105,6 @@ public class ImportExportData {
         return holdCVData;
     }
     
-    @AuraEnabled
     public static List<Map<String,String>> createImportedTemplates(String tempLst){
         List<Map<String,String>> recordIds = new List<Map<String,String>>();
         List<Document_Template__c> templateLst = (List<Document_Template__c>) JSON.deserialize(tempLst, List<Document_Template__c>.class);
@@ -133,7 +130,6 @@ public class ImportExportData {
         return recordIDs;
     }
     
-    @AuraEnabled
     public static List<String> createImportedTemplateSections(String tempSecLst){
         List<String> recordIds = new List<String>();
         List<Document_Template_Section__c> templateSecLst = (List<Document_Template_Section__c>) JSON.deserialize(tempSecLst, List<Document_Template_Section__c>.class);
@@ -151,7 +147,6 @@ public class ImportExportData {
         
     }
     
-    @AuraEnabled
     public static List<Map<String,String>> createImportedClauses(String tempClausesLst){
         List<Map<String,String>> recordIds = new List<Map<String,String>>();
         List<Document_Clause__c> existingClauses = [Select id,External_ID__c from Document_Clause__c WITH SECURITY_ENFORCED];
@@ -182,7 +177,6 @@ public class ImportExportData {
         return recordIds;     
     }
     
-    @AuraEnabled
     public static List<Map<String,String>> createImportedRules(String tempRuleLst){
         List<Map<String,String>> recordIds = new List<Map<String,String>>();
         List<Rule__c> templateRulesLst = (List<Rule__c>) JSON.deserialize(tempRuleLst, List<Rule__c>.class);
@@ -200,7 +194,6 @@ public class ImportExportData {
         return recordIds;        
     }
     
-    @AuraEnabled
     public static List<Map<String,String>> createImportedRuleConditions(String tempRuleCondLst){
         List<Map<String,String>> recordIds = new List<Map<String,String>>();
         List<Rule_Condition__c> templateRuleCondLst = (List<Rule_Condition__c>) JSON.deserialize(tempRuleCondLst, List<Rule_Condition__c>.class);
@@ -218,7 +211,6 @@ public class ImportExportData {
         return recordIds;        
     }
     
-    @AuraEnabled
     public static List<ContentVersion> createImportedWatermark(String watermarkLst){
         List<Map<String,String>> recordIds = new List<Map<String,String>>();
         Map<String,Object> imageMap = (Map<string,Object>) JSON.deserializeuntyped(watermarkLst);

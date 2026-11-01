@@ -2,16 +2,10 @@ import { LightningElement, track, wire, api } from 'lwc';
 import getDocumentTemplates from '@salesforce/apex/SaveDocumentTemplate.getDocumentTemplates';
 import createDocumentTemplate from '@salesforce/apex/SaveDocumentTemplate.createDocumentTemplate';
 import getRelatedToTypeOptions from '@salesforce/apex/SaveDocumentTemplate.getRelatedToTypeOptions';
-import getAllDocumentTemplatesData from '@salesforce/apex/ImportExportData.getAllDocumentTemplatesData';
-import createImportedTemplates from '@salesforce/apex/ImportExportData.createImportedTemplates';
-import createImportedTemplateSections from '@salesforce/apex/ImportExportData.createImportedTemplateSections';
-import createImportedClauses from '@salesforce/apex/ImportExportData.createImportedClauses';
-import createImportedRules from '@salesforce/apex/ImportExportData.createImportedRules';
-import createImportedRuleConditions from '@salesforce/apex/ImportExportData.createImportedRuleConditions';
-import templateExternalList from '@salesforce/apex/ImportExportData.templateExternalList';
-import getWatermarkContent from '@salesforce/apex/ImportExportData.getWatermarkContent';
-import createImportedWatermark from '@salesforce/apex/ImportExportData.createImportedWatermark';
 import getAllRelatedToTypeOptions from '@salesforce/apex/ImportExportData.getAllRelatedToTypeOptions';
+import listTemplates from '@salesforce/apex/TemplateMigration.listTemplates';
+import exportData from '@salesforce/apex/TemplateMigration.exportData';
+import importData from '@salesforce/apex/TemplateMigration.importData';
 
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import getAllPopupMessages from '@salesforce/apex/PopUpMessageSelector.getAllConstants';
@@ -46,6 +40,9 @@ export default class DxTemplateSetup extends LightningElement {
   previewLabel='Show Preview';
   createDisabledButton=true;
   showDuplicate=false;
+  importFailed=false;
+  @track importSummaryLines=[];
+  @track importWarnings=[];
   errorMessage='';
   @track jsonData;
   @track isSaved = true;
@@ -710,23 +707,25 @@ try{
 
     /* Import Export Functionality*/
 
-    //Export button clicked. Fetches all relevent data and displays a pop up
+    // The server's own message of an error, for a toast or the dialog.
+    errorText(error, fallback) {
+        return (error && error.body && error.body.message) || (error && error.message) || fallback;
+    }
+
+    //Export button clicked. Lists the templates that can be exported (the file is made when some are selected)
     exportTemplate(){
         this.showAllTemplates=true;
         this.showAddNewTemplate=false;
-        getAllDocumentTemplatesData()
-        .then(data => {
-            let exportTemplateData = JSON.parse(data);
-            //console.log('exportTemplate', exportTemplateData);
-            this.allTemplates= exportTemplateData;
-            this.templatesOptions = exportTemplateData.Templates.map(exportTemplatelst => ({
-                label: exportTemplatelst.Name + ' - v'+ exportTemplatelst.DxCPQ__Version_Number__c,
-                value: exportTemplatelst.Id
+        listTemplates()
+        .then(rows => {
+            this.templatesOptions = rows.map(row => ({
+                label: row.version == null ? row.name : row.name + ' - v' + row.version,
+                value: row.id
             }));
         })
         .catch(error => {
-            console.log('Error -> exportTemplate' + error);
-        })
+            this.dispatchEvent(new ShowToastEvent({ title: 'Export', message: this.errorText(error, 'The list of templates could not be read.'), variant: 'error' }));
+        });
         this.template.querySelector('c-modal').show();
     }
 
@@ -802,167 +801,49 @@ try{
         }
     }
 
-    //Checks if duplicate template records are being uploaded
-    checkForDuplicate() {
-        let importedRecords  = this.checkJsonInput();
-        if (!importedRecords) return;
-        let validTypes = this.checkValidRelatedType();
-        if (!validTypes) return;
-        return templateExternalList()
-        .then(data => {
-            this.showDuplicate = data.some(item => {
-                let exterID = item.ExternalId;
-                if (!exterID) {
-                    return false;
-                }
-                return importedRecords.Templates.some(importTemplates => {
-                    return importTemplates.DxCPQ__External_ID__c === exterID;
-                });
-            });
-            return this.showDuplicate;
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            return this.showDuplicate;
-        });
-    }
-
-    //Create button clicked in Import functionality. Parses through the data to assign the related objects with one another
-    createTemplateData(){   
-        this.showFirstImportScreen=false;
+    // Failure (or a file that cannot be used): the message is shown with a Back button
+    showImportProblem(message) {
+        this.errorMessage = message;
+        this.importFailed = true;
+        this.showFirstImportScreen = false;
         this.showDuplicateTemplates = true;
         this.currentStep = "2";
-        // 1. Check if any uploaded template has already been uploaded
-        this.checkForDuplicate()
-        .then(()=>{
-            if (this.showDuplicate == true){
-                this.errorMessage = 'Duplicates found. Please check your file and make sure to upload the correct data'
-            }
-            else {
-                this.errorMessage = 'Creating templates'
-                // 2. Duplicate not found so the whole JSON file is checked and IDs for each record is manipulated.
-                try{
-                    let createImportedRecords = JSON.parse(this.jsonData);
-                    createImportedRecords.Templates.forEach(importTemplates => {
-                        importTemplates.Id= undefined;
-                    });
-                    let templatesjson = JSON.stringify(createImportedRecords.Templates);
-                    // 3. Templates are created first and then their new ID is inserted into the Doc Temp Section and the Watermark Images
-                    createImportedTemplates({tempLst:templatesjson})
-                    .then(data=> {
-                        data.forEach(item =>{
-                            let newTempId= item.Id;
-                            let oldTempId= item.ExternalId;
-                            // 3.1 Template ID into Doc Temp Section
-                            createImportedRecords['Template Sections'].forEach(tempSecItem => {
-                                if (tempSecItem.DxCPQ__External_Document_Template__c == oldTempId){
-                                    tempSecItem.DxCPQ__Document_Template__c= newTempId;
-                                }
-                                tempSecItem.Id=undefined;
-                            })
-                        });
-                        let watermarkjson = JSON.stringify(createImportedRecords.Watermark);
-                        // 4. Watermarks are created. No data to return so we just wait for this to finish.
-                        createImportedWatermark({watermarkLst:watermarkjson})
-                        .then(data =>{
+    }
 
-                        })
-                    })
-                    // 5. After templates are created, Rules and Rule Conditions are created
-                    .then(()=>{
-                        createImportedRecords.Rules.forEach(importRules => {
-                            //importRules.DxCPQ__External_Id__c= importRules.Id;
-                            importRules.Id= undefined;
-                        })
-                        let rulesjson = JSON.stringify(createImportedRecords.Rules);
-                        createImportedRules({tempRuleLst:rulesjson})
-                        .then(data => {
-                            data.forEach(item=>{
-                                let newTempId = item.Id;
-                                let oldTempId= item.ExternalId;
-                                createImportedRecords['Template Sections'].forEach(tempSecItem =>{
-                                    if(tempSecItem.DxCPQ__External_RuleID__c == oldTempId){
-                                        tempSecItem.DxCPQ__RuleId__c = newTempId;
-                                    }
-                                    else if (tempSecItem.DxCPQ__External_SecVis_Rule_ID__c == oldTempId){
-                                        tempSecItem.DxCPQ__Section_Visibility_Rule__c = newTempId;
-                                    }
-                                })
-                                createImportedRecords['Rule Conditions'].forEach(importRuleConds => {
-                                    if(importRuleConds.DxCPQ__External_Id__c == oldTempId){
-                                        importRuleConds.DxCPQ__Rule__c = newTempId;
-                                    }
-                                    importRuleConds.Id= undefined;
-                                })
-                            })
-                        })
-                        .then(()=>{
-                            let ruleConditionjson = JSON.stringify(createImportedRecords['Rule Conditions']);
-                            createImportedRuleConditions({tempRuleCondLst:ruleConditionjson});
-                            console.log('Rule Condtions Created');
-                        })
-                    })
-                    // 6. Document clauses are created and linked to the necessary Doc Temp Sec
-                    .then(()=>{
-                        createImportedRecords['Document Clauses'].forEach(importClauses => {
-                            importClauses.DxCPQ__External_Id__c= importClauses.Id;
-                            //importClauses.DxCPQ__External_ID__c= importClauses.DxCPQ__External_ID__c!=null? importClauses.DxCPQ__External_ID__c : importClauses.Id;
-                            importClauses.Id= undefined;
-                        })
-                        let clausesjson = JSON.stringify(createImportedRecords['Document Clauses']);
-                        createImportedClauses({tempClausesLst:clausesjson})
-                        .then(data=> {
-                            data.forEach(item =>{
-                                let newTempId= item.Id;
-                                let oldTempId= item.ExternalId;
-                                createImportedRecords['Template Sections'].forEach(tempSecItem => {
-                                    if (tempSecItem.DxCPQ__Document_Clause__c == oldTempId){
-                                        tempSecItem.DxCPQ__Document_Clause__c = newTempId;
-                                    }
-                                });
-                            });
-                        })
-                        .then(()=>{
-                            let templatesectionjson = JSON.stringify(createImportedRecords['Template Sections']);
-                            createImportedTemplateSections({tempSecLst:templatesectionjson});
-                            console.log('Template Section created!');
-                            this.showDuplicateTemplates=false;
-                            this.showTemplateMessage=true;
-                            this.templateSuccessMessage = 'Templates have been successfully created';
-                            this.currentStep="3";
-                        })
-                    })
-                    .catch (error=>{
-                        console.error('Error in creating the data- ',error);
-                        this.showDuplicateTemplates=false;
-                        this.showTemplateMessage=true;
-                        this.templateSuccessMessage = 'The template creation process ran into some issue. Please check the data and try again';
-                        this.currentStep="3";
-                    });
-                    // const toastTemplateCreated = new ShowToastEvent({
-                    //         title: 'Success!',
-                    //         message: 'Template information has been received and will take a while to create. Please refresh the page',//this.popUpMessage.DXTEMPLATESETUP_CREATED,//'Created Successfully',
-                    //         variant: 'Success',
-                    //     });
-                    // this.dispatchEvent(toastTemplateCreated);
-                    // this.template.querySelector('c-modal').hide();
-                    // this.showImportTemplates=false;
-                }
-                catch (error){
-                    console.error('Error in creating the data- ',error);
-                    this.showDuplicateTemplates=false;
-                    this.showTemplateMessage=true;
-                    this.templateSuccessMessage = 'The template creation process ran into some issue. Please check the data and try again';
-                    this.currentStep="3";
-                }
-            }
+    backToImport() {
+        this.importFailed = false;
+        this.showDuplicateTemplates = false;
+        this.showFirstImportScreen = true;
+        this.currentStep = "1";
+    }
+
+    //Create button clicked in Import. The server creates everything in one transaction (or nothing).
+    createTemplateData(){
+        if (!this.checkJsonInput() || !this.checkValidRelatedType()) {
+            this.showImportProblem(this.errorMessage);
+            return;
+        }
+        this.importFailed = false;
+        this.showFirstImportScreen = false;
+        this.showDuplicateTemplates = true;
+        this.currentStep = "2";
+        this.errorMessage = 'Creating templates';
+        importData({ fileContent: this.jsonData })
+        .then(result => {
+            const plural = (count, word) => count + ' ' + word + (count === 1 ? '' : 's');
+            this.importSummaryLines = [
+                ...result.templates.map(created => created.name + ' (version ' + created.version + ')'),
+                [plural(result.sections, 'section'), plural(result.rules, 'rule'), plural(result.conditions, 'condition'), plural(result.clauses, 'clause'),
+                    plural(result.translations, 'translation'), plural(result.files, 'file')].join(', ')
+            ];
+            this.importWarnings = result.warnings || [];
+            this.showDuplicateTemplates = false;
+            this.showTemplateMessage = true;
+            this.templateSuccessMessage = 'Templates have been successfully created';
+            this.currentStep = "3";
         })
-        .catch (error=>{
-            console.error('Error in creating the data- ',error);
-            this.showDuplicateTemplates=false;
-            this.showTemplateMessage=true;
-            this.templateSuccessMessage = 'The template creation process ran into some issue. Please check the data and try again';
-            this.currentStep="3";
+        .catch(error => {
+            this.showImportProblem(this.errorText(error, 'The import failed and nothing was created. Please check the file and try again.'));
         });
     }
 
@@ -976,36 +857,17 @@ try{
     }
 
     handleExportTemplateList(event){
-        let watermarkTempIds = [];
         this._selected = event.detail.value;
-        this.showPreviewButton = this._selected!=0 ? true : false;
-        const exportTmpList= JSON.parse(JSON.stringify(this.allTemplates));
-        //this.exportList= this.allTemplates;
-        exportTmpList.Templates= exportTmpList.Templates.filter(item => this._selected.includes(item.Id));
-        exportTmpList['Template Sections']= exportTmpList['Template Sections'].filter(item => this._selected.includes(item.DxCPQ__Document_Template__c));
-        //exportTmpList.Rules=exportTmpList.Rules.filter(item=> exportTmpList['Template Sections'].includes(item.Id));
-        exportTmpList.Rules = exportTmpList.Rules.filter(rule => {
-            return exportTmpList['Template Sections'].some(section => section.DxCPQ__RuleId__c === rule.Id || section.DxCPQ__Section_Visibility_Rule__c === rule.Id);
-        });
-        exportTmpList['Rule Conditions'] = exportTmpList['Rule Conditions'].filter(ruleCond => {
-            return exportTmpList.Rules.some(rule => rule.Id === ruleCond.DxCPQ__Rule__c);
-        });
-        //exportTmpList['Rule Conditions']=exportTmpList['Rule Conditions'].filter(item=> exportTmpList['Rules'].includes(item.Rule__c));
-        exportTmpList.Templates.forEach(tempID=>{
-            if (tempID.DxCPQ__Watermark_Data__c !=null){
-                watermarkTempIds.push(tempID.Id);
-                console.log('watermarkTempIds- '+watermarkTempIds)
-            }
-        })
-        getWatermarkContent({idList:watermarkTempIds})
+        this.showPreviewButton = this._selected.length !== 0;
+        this.exportList = '';
+        if (this._selected.length === 0) { return; }
+        exportData({ templateIds: this._selected })
         .then(data => {
-            console.log('Watermark data has been achieved',data);
-            exportTmpList.Watermark = data;
-            this.exportList= JSON.stringify(exportTmpList,null, 4);
-            console.log('The selected templates are- ',this._selected);
+            this.exportList = JSON.stringify(JSON.parse(data), null, 2);
         })
-        
-        //console.log('The json data is', this.exportList);
+        .catch(error => {
+            this.dispatchEvent(new ShowToastEvent({ title: 'Export', message: this.errorText(error, 'The export failed.'), variant: 'error' }));
+        });
     }
 
     //Handling the Show/Hide Preview button in Export
@@ -1084,6 +946,10 @@ try{
     * Method to clear the watermark fields when the modal is closed
     * @param {Object} event
     */
+    get hasImportWarnings() {
+        return this.importWarnings.length > 0;
+    }
+
     handleDialogBoxClosed(event){
         this.previousImgRotationValue = '0';
         this.previousRotationValue = '0';
@@ -1102,6 +968,9 @@ try{
         this.showFirstImportScreen=false;
         this.showDuplicateTemplates=false;
         this.showDuplicate=false;
+        this.importFailed=false;
+        this.importSummaryLines=[];
+        this.importWarnings=[];
         this.showTemplateMessage=false;
         this.showPreviewButton=false;
         this.currentStep="1";

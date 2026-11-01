@@ -50,3 +50,39 @@ Purpose of the feature: move templates from one org to another (develop in a dev
 4. **Translations** of the selected templates only, re-created with the new template id.
 5. **Re-import = promote**: decide whether a template that exists in the target (matched by its source id or name) is replaced or imported as the next version.
 6. A **dry-run summary** before Create (counts, missing objects or fields, class/flow to set again).
+
+## Fix and retest (2026-11-01)
+
+Built as designed above: new Apex class **`TemplateMigration`** (`listTemplates`, `exportData`, `importData`) with 9 Apex tests (`TemplateMigration_Test`, written first), `dxTemplateSetup` rewired to it, 8 new Jest tests (`dxTemplateSetup/__tests__/importExport.test.js`, written first and failing against the old code). The old create methods of `ImportExportData` are no longer AuraEnabled (the install script `PostInstallDataCreation` still uses them from Apex).
+
+How it works now: the export dialog lists templates (`listTemplates`); selecting some asks the server for a file with only those templates, their sections, the rules, conditions and clauses they use, their translations and every file they show (watermark files and every `068...` id in section text, header and page properties, as base64). Import sends the whole file in one call; the server checks the file and the "Related To Type" values, then creates everything in one transaction (all or nothing) and returns what was made and what to check. Every link is keyed by the source record's `Id` from the file. Whitelisted fields only. Importing a name that exists makes the next version. Files of the old format (key `Watermark`) are still accepted.
+
+Retest with the real dialogs (target org already held the first, faulty import as version 1):
+
+| # | Test | Result |
+|---|---|---|
+| IE4 | Import the new file (170 KB) into the target org | Pass. The dialog lists "ZZ Translation Test (version 2)", "ZZ Clone Ctx (version 2)" and "12 sections, 2 rules, 2 conditions, 1 clause, 98 translations, 5 files". Version 2 because the first import is version 1; nothing was blocked (I-5). |
+| IE5 | Links in the new copies (SOQL) | Pass. The Related Objects rule is only on "RO Opps"; the visibility rule only on "Seq A"; "ZZ Payment Terms" points to the clause that already existed (no second copy); each condition belongs to the copy of its own rule (I-1, I-7). |
+| IE6 | Translations | Pass: 98 on the copy of "ZZ Translation Test", 0 on the other (I-3, E-1). |
+| IE7 | Watermark | Pass: three files created in the target org and the template's watermark data names the new ids (I-2). |
+| IE8 | Pictures | Pass: the resized picture in "Seq A" points to a new file in the target org (7,289 bytes, as in the source), and the logo was created too (I-4). |
+| IE9 | Real PDF of the imported template in the target org (account, generate, render) | Pass. The resized logo is painted at 135 x 32 pt as in the source, the merge fields resolve ("Dear Datamatics", "Industry: Technology"), the visibility rule shows "Seq A" for an account of type "Customer - Direct", and the table column starts match the source. |
+| IE10 | Failure cases (Apex and Jest) | Pass. A "Related To Type" the target does not have, a file that is not JSON, one without templates: each is refused with a message and nothing is left behind (rollback test). The dialog shows the server's message with a Back button. |
+
+| # | Defect | Status |
+|---|---|---|
+| I-1..I-7, E-1, E-3 | see the findings above | FIXED (server-side import, ids as keys, atomic, files and translations carried). |
+| E-2 | "vundefined" for a template without a version | FIXED (label has no version part then). |
+| E-4 | the dialog loaded every template of the org | FIXED: it lists templates only; the file is made for the selection. |
+| E-5 | create methods accepted any field, exposed to the browser | FIXED: whitelisted fields in `TemplateMigration`; the old create methods are not AuraEnabled any more. |
+| E-6 / I-9 | Related Objects objects and Class/Flow not checked | PARTLY: the result lists a warning for a Related Objects section whose object does not exist in the target and for a template that had a Class or Flow in the source. Fields inside the Related Objects details are not checked. |
+
+## Still open (for discussion)
+
+| # | Item |
+|---|---|
+| IE-O1 | Importing makes a new version; there is no "replace the existing version" choice and the active version is not touched. |
+| IE-O2 | Files larger than about 2.5 MB in total are left out of the file with a note (synchronous Apex memory limit). A very image-heavy template needs several exports or a different transport. |
+| IE-O3 | The export file carries pictures as base64, so it is large (170 KB for two templates); the JSON preview in the dialog is not readable for it. |
+| IE-O4 | The first, faulty import is still in the target org as version 1 of both templates (wrong rule on all sections, no translations). Nothing was deleted. |
+| IE-O5 | Custom fields, record types and picklist values that sections or rules refer to are not migrated (outside templates); the target org has to have them. A pre-check for those is not built. |
