@@ -1013,16 +1013,6 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c = JSON.stringify(this.imagesJSON);
             let tableclass = this.template.querySelector('.tableMainClass');
 
-            let colSwapRows = tableclass.querySelectorAll('.colswap');
-            colSwapRows.forEach(row => {
-                row.parentNode.removeChild(row);
-            });
-
-            let colWidthUpdateRows = tableclass.querySelectorAll('.colwidthupdaterow');
-            colWidthUpdateRows.forEach(row => {
-                row.parentNode.removeChild(row);
-            });
-
             this.applySavedWidths();
 
             let cleanedHtmlString = this.getCleanedHTMLString();
@@ -1089,8 +1079,8 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
 
     applySavedWidths() {
         this.tableheaders.forEach((header, index) => {
-            const th = this.dataColumnHeader(index);
-            if (this.savedColumnWidths[`column${index}`]) {
+            const th = this.normalHeaderCell(index);
+            if (th && this.savedColumnWidths[`column${index}`]) {
                 th.style.width = this.savedColumnWidths[`column${index}`];
             }
         });
@@ -1101,6 +1091,9 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
         let parser = new DOMParser();
         let existingHtmlString = tableclass.innerHTML.replace(/hidden=""/g, '');
         let domConverted = parser.parseFromString(existingHtmlString, 'text/html');
+
+        // The helper rows of Col Swap and Col Resize are not part of the saved table (taken out of this copy, never out of the live page).
+        domConverted.querySelectorAll('.colswap, .colwidthupdaterow').forEach(row => row.remove());
 
         domConverted.querySelectorAll('th, td').forEach(cell => {
             if (cell.firstChild && cell.firstChild.tagName === 'LIGHTNING-INPUT-RICH-TEXT') {
@@ -2263,6 +2256,11 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     get serialNumberStyle() {
         const size = parseFloat(this.fontsize) || 12;
         return `width:${Math.ceil(size * 0.62 * 4) + 12}px;`;
+    }
+
+    // The cell of the normal header row (not the Col Swap or Col Resize helper row) of data column `index`.
+    normalHeaderCell(index) {
+        return this.template.querySelector(`thead tr:not(.colswap):not(.colwidthupdaterow) th:nth-child(${index + 1 + (this.isSerialNumberCheck ? 1 : 0)})`);
     }
 
     // The header cell of data column `index` (0 = first column of the table); the S.No column has a header cell of its own in front.
