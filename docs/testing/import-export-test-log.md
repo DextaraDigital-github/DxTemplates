@@ -1,0 +1,52 @@
+# Import and Export of templates: test log (2026-11-01)
+
+Purpose of the feature: move templates from one org to another (develop in a dev sandbox, then UAT, then production). Code: `dxTemplateSetup` (`exportTemplate`, `handleExportTemplateList`, `downloadJson`, `importTemplate`, `handleJSONUpload`, `createTemplateData`) and the Apex class `ImportExportData`. Buttons: the two round icons at the top of the template list (left = Import, right = Export).
+
+## Set-up (reusable)
+
+- Source org: `dxtemplates-scratch-30d` (the development org). Target org: **`dxtemplates-uat-30d`**, a second scratch org made from the same Dev Hub (`dxdevhub`) with `sf org create scratch --definition-file config/project-scratch-def.json --target-dev-hub dxdevhub --alias dxtemplates-uat-30d --duration-days 30`, then `sf project deploy start --source-dir force-app` (237 components) and `sf org assign permset --name Dx_Template_Access --name Dx_Template_User_Access`. It has the same code as a package install would give but none of the source org's data, fields or files. Expires 2026-12-01.
+- Templates exported: "ZZ Clone Ctx" (header, context with a resized image and a visibility rule, three tables, Related Objects with a filter rule, two Clause sections, footer) and "ZZ Translation Test" (translations in seven languages, header, footer, page properties, text and image watermark).
+- Export was run in the real dialog (two templates selected, Download). The download was caught in the page by a hook on the anchor click so that no file was written to the disk; the file content was read from the page (181,461 characters: 2 templates, 12 sections, 2 rules, 2 conditions, 1 clause, 99 translations, 3 watermark files). The same file was rebuilt from the same Apex methods and the dialog's own filter code (`docs/tools/...` is not needed, the steps are in this log), and the counts were identical, so that file was uploaded in the target org with the real Import dialog (file chooser, Create).
+- Tool trap: `javascript_tool` returns only about a thousand characters, so a large file cannot be read out of the page; dump it from Apex instead (base64 in 12,000-character `System.debug` chunks).
+
+## Results
+
+| # | Test | Result |
+|---|---|---|
+| IE1 | Export dialog: pick two templates, Download | Pass for the file itself (valid JSON, all seven blocks). Findings E-1 and E-2 below. |
+| IE2 | Import the file into the empty second org (Choose File, Create) | The dialog ends with "Templates have been successfully created" and both templates and all 12 sections exist, with page properties. But see I-1 to I-6: the data is wrong or missing in several places while the message says success. |
+| IE3 | Import the same file a second time | Blocked: "Duplicates found. Please check your file and make sure to upload the correct data". The dialog stays on step 2 with no button to go back or close except the corner X. |
+
+## Findings: data that was wrong or lost (all verified in the target org)
+
+| # | Finding | Severity |
+|---|---|---|
+| I-1 | **The Related Objects filter rule was linked to every section of the template** (Header, Footer, Context, Tables, Clauses: 9 sections), not only to "RO Opps". The import matches a section's rule by `External_RuleID__c`, which is empty for that rule, and `null == null` is true for every section. Data corruption. | High |
+| I-2 | **Watermark was not imported.** No file was created in the target org and the template's `Watermark_Data__c` still names the source org's file ids, so the watermark is broken. The import looks the file up by `External_Id__c`, which the product never sets when it saves a watermark, so the lookup value is empty. | High |
+| I-3 | **Translations are exported but never imported** (99 in the file, 0 created). There is no import method for them at all. | High |
+| I-4 | **Pictures in section text are not carried over.** Three sections still contain `/sfc/servlet.shepherd/version/download/068...` ids of the source org (Seq A, Full T, the clause section), so the pictures are broken in the target org. Only watermark files are exported, no other file. | High |
+| I-5 | **Re-importing is impossible.** A template that was imported once (or any template with an external id already present) blocks the whole file, so a changed template cannot be promoted again; the only way is to delete it in the target first. | High (the main use case) |
+| I-6 | **The import is not atomic and its success message is not true.** The steps run as unconnected promises (watermark, rules, conditions, clauses, sections); the success text is shown before the last calls finish and errors inside them are swallowed; a failure half way leaves half of the data. | High |
+| I-7 | Rule and condition links work only by luck: they follow `External_Id__c`, which is filled for rules made through "Create Rule" but empty for rules saved later (4 of 7 rules and 4 of 7 conditions in the source org had none). A condition with an empty external id is **not exported at all** (the export reads conditions with `External_Id__c IN (rule external ids)`). | High |
+| I-8 | The clause and the visibility rule of "Seq A" were linked correctly (the paths that do work). A clause whose record was deleted leaves its section without a clause (as in the designer, C-D13). | info |
+| I-9 | The Class and Flow of a template (`ClassId__c`, `FlowId__c`) are not exported (they are org specific), and nothing tells the user that they have to be set again in the target org. | Medium |
+
+## Findings: export dialog and file
+
+| # | Finding |
+|---|---|
+| E-1 | The file contains **all translations of the org**, not those of the selected templates (99 in the file; 98 belong to the selected template, one to a template that was not selected). |
+| E-2 | A template without a version number is listed as "ZZ Translation Test - vundefined". |
+| E-3 | If the server call fails, `getAllDocumentTemplatesData` returns an empty text (the `catch` returns `''`), the dialog's `JSON.parse` then fails and the dialog shows no list and no message. |
+| E-4 | The call loads **every** section and translation of the org (limit 50,000 sections, translations without a limit) every time the dialog opens, and the selection is applied in the browser. |
+| E-5 | The Apex methods that create records insert whatever JSON they receive (`JSON.deserialize` into the SObject, no field whitelist, no object or field permission check). A hand-edited file can set any writable field. |
+| E-6 | The import dialog's own check covers only the "Related to Type" picklist value. Related Objects sections name objects and fields (`Section_Details__c`) that may not exist in the target org; nothing is checked. |
+
+## What a correct design looks like (architect)
+
+1. **One server call, one transaction.** Move the orchestration into Apex (`ImportExportData.importTemplates(json)`): validate the file, take a savepoint, insert templates, then sections, rules and conditions, clauses, translations and files, and roll back on any failure. Return a summary (what was created, what was skipped and why) that the dialog shows.
+2. **Key every link by the source id** that is in the file (`Id` of each exported record), never by `External_Id__c`. A map `old id to new id` per object resolves template, rule, condition, clause links and the pictures in text.
+3. **Export the files** that the selected templates use (watermark entries and every `068...` id found in section content, header JSON and table cells) as base64 with their title, and re-create them in the target, rewriting the ids in the text.
+4. **Translations** of the selected templates only, re-created with the new template id.
+5. **Re-import = promote**: decide whether a template that exists in the target (matched by its source id or name) is replaced or imported as the next version.
+6. A **dry-run summary** before Create (counts, missing objects or fields, class/flow to set again).
