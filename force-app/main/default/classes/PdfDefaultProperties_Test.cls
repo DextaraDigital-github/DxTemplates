@@ -33,4 +33,17 @@ private class PdfDefaultProperties_Test {
             System.assert(css.contains('padding-right: 10px'), cell + ': ' + css);
         }
     }
+
+    // The first-page header cells of the defaults must be padded like the others and have the designer's white background
+    // (they were black behind black text, and unpadded cells are laid out wrongly by the PDF engine).
+    @IsTest
+    static void theDefaultFirstPageHeaderCellsArePaddedAndWhite() {
+        Map<String, Object> headers = (Map<String, Object>) ((Map<String, Object>) JSON.deserializeUntyped(DefaultPageProperties.JSON_TEXT)).get('headerJSONVal');
+        for (String cell : new List<String>{ 'first_header_left', 'first_header_center', 'first_header_right' }) {
+            String css = (String) headers.get(cell);
+            System.assert(css.contains('padding-left: 10px'), cell + ': ' + css);
+            System.assert(css.contains('padding-right: 10px'), cell + ': ' + css);
+            System.assert(css.contains('background-color:#FFFFFF'), cell + ': ' + css);
+        }
+    }
 }
