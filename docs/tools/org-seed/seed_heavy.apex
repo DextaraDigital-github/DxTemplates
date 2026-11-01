@@ -45,8 +45,11 @@ String staticRows = '';
 for (Integer i = 1; i <= 120; i++) { staticRows += '<tr><td>Row ' + i + '</td><td>{!Account.Name}</td><td>' + (i * 11) + '</td></tr>'; }
 section('Static', 'Table', 2, tbl('<th>Row</th><th>Account</th><th>Value</th>', staticRows), true);
 
-DxCPQ__Document_Template_Section__c ro = [SELECT DxCPQ__Section_Content__c FROM DxCPQ__Document_Template_Section__c WHERE DxCPQ__Document_Template__r.Name = 'ZZ Clone RO' AND DxCPQ__Type__c = 'Related Objects' LIMIT 1];
-section('Heavy Opps', 'Related Objects', 3, ro.DxCPQ__Section_Content__c.replace('(amount > 10000)', '(name like \'Heavy%\')'), true);
+DxCPQ__Document_Template_Section__c ro = [SELECT DxCPQ__Section_Content__c, DxCPQ__Header_Content__c FROM DxCPQ__Document_Template_Section__c WHERE DxCPQ__Document_Template__r.Name = 'ZZ Clone RO' AND DxCPQ__Type__c = 'Related Objects' LIMIT 1];
+// Header_Content__c is the header row the designer saves with a Related Objects section; the server-side generation prints it.
+insert new DxCPQ__Document_Template_Section__c(Name = 'Heavy Opps', DxCPQ__Document_Template__c = t.Id, DxCPQ__Type__c = 'Related Objects', DxCPQ__Sequence__c = 3, DxCPQ__New_Page__c = true,
+    DxCPQ__Header_Content__c = ro.DxCPQ__Header_Content__c,
+    DxCPQ__Section_Content__c = ro.DxCPQ__Section_Content__c.replace('(amount > 10000)', '(name like \'Heavy%\')').replace('"mainparentObject":""', '"mainparentObject":"Account"'));
 
 String clause = '<div style="page-break-before : always;"><p><b>Long clause</b></p>';
 for (Integer i = 1; i <= 40; i++) { clause += '<p>Clause paragraph ' + i + ': The parties agree that obligations number ' + i + ' continue after termination, including confidentiality &amp; payment.</p>'; }

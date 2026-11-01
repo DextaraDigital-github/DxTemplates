@@ -324,8 +324,9 @@ public with sharing class ROsectionAutomationController {
                     }
                     else {
                         List<String> tempfield = selfield.split('\\.');
+                        String lookupObject = referencedObjectOfRelationship(fieldMap, tempfield[0]);
                         tempfield.remove(0);
-                        Map<String,String> FieldnameTypeLookup = getObjectFieldTypeMap('User',tempfield);
+                        Map<String,String> FieldnameTypeLookup = getObjectFieldTypeMap(lookupObject,tempfield);
                         fieldNameType.put(selfield,FieldnameTypeLookup.get(tempfield[0]));
                     }
                 }
@@ -341,6 +342,17 @@ public with sharing class ROsectionAutomationController {
         return fieldNameType;
     }
     
+    // The object a standard relationship name points to (Opportunity "Account" -> Account). Owner, CreatedBy and the like point to User.
+    private static String referencedObjectOfRelationship(Map<String, Schema.SObjectField> fieldMap, String relationshipName) {
+        for (Schema.SObjectField field : fieldMap.values()) {
+            Schema.DescribeFieldResult described = field.getDescribe();
+            if (described.getRelationshipName() == relationshipName && !described.getReferenceTo().isEmpty()) {
+                return described.getReferenceTo()[0].getDescribe().getName();
+            }
+        }
+        return 'User';
+    }
+
     public static string getReferenceObjectAPIName(String fromObjName, String lkpField)  {
         try {            
             Schema.DescribeFieldResult scehmaMap = Schema.getGlobalDescribe().get(fromObjName).getDescribe().fields.getMap().get(lkpField).getDescribe();
@@ -360,7 +372,7 @@ public with sharing class ROsectionAutomationController {
             for(Object field : selectedFieldAsHeaderAPIList) {
                 Object recVal;   
                 String fieldStr = (String) field;
-                String fieldTypeAsText = ((String) fieldNameType.get(fieldStr)).toUpperCase();
+                String fieldTypeAsText = fieldNameType.containsKey(fieldStr) ? ((String) fieldNameType.get(fieldStr)).toUpperCase() : 'STRING'; // a field whose type could not be found prints as text
 
                 Map<String, Object> currRecordLkpData = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(currRecord));
                 
@@ -579,7 +591,7 @@ public with sharing class ROsectionAutomationController {
         try {
             String query = 'Select Header_Content__c from Document_Template_Section__c where Id =\'' + ROTemplateSectionId +'\' limit 1';
             Document_Template_Section__c ROTemplateSection = Database.query(query);
-            return ROTemplateSection.Header_Content__c;
+            return ROTemplateSection.Header_Content__c == null ? '' : ROTemplateSection.Header_Content__c; // a section made outside the designer has no saved header row
         }
         catch(Exception ex)  {
             LogHandler.createLog((Id) null,'ROsectionAutomationController.getHeaderContent()','Template Id- '+ ROTemplateSectionId + ' ' + ex.getLineNumber() + ex.getStackTraceString() + ex.getCause(),ex.getMessage(),'Exception');   

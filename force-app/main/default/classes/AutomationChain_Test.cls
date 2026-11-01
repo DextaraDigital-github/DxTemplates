@@ -6,7 +6,7 @@ private class AutomationChain_Test {
     private static Id makeTemplate(String name) {
         Document_Template__c template = new Document_Template__c(Name = name, Related_To_Type__c = 'Account');
         insert template;
-        insert new Document_Template_Section__c(Name = 'Letter', Document_Template__c = template.Id, Type__c = 'Context', Sequence__c = 0, Section_Content__c = '<p>Letter for {!Account.Name}</p>');
+        insert new Document_Template_Section__c(Name = 'Letter', Document_Template__c = template.Id, Type__c = 'Context', Sequence__c = 0, Section_Content__c = '<p>Letter for {!Account.NumberOfEmployees}</p>');
         return template.Id;
     }
 
@@ -38,6 +38,24 @@ private class AutomationChain_Test {
         System.assertEquals(String.valueOf(account.Id), String.valueOf(PlaceholderTestHandler.lastInput.get('recordId')));
         System.assertEquals(String.valueOf(attachments[0].Id), String.valueOf(PlaceholderTestHandler.lastInput.get('attachmentId')));
         System.assertNotEquals(null, PlaceholderTestHandler.lastInput.get('documentId'));
+    }
+
+    // A Related Objects section made outside the designer (import, API, seed) has no saved header row (Header_Content__c); the
+    // run used to stop with a null error and no document.
+    @IsTest
+    static void aRelatedObjectsSectionMadeOutsideTheDesignerStillGivesThePdf() {
+        Account account = new Account(Name = 'Acme');
+        insert account;
+        insert new Opportunity(AccountId = account.Id, Name = 'Deal 1', StageName = 'Prospecting', CloseDate = Date.today().addDays(5), Amount = 100);
+        Id templateId = makeTemplate('RO without header');
+        insert new Document_Template_Section__c(Name = 'Deals', Document_Template__c = templateId, Type__c = 'Related Objects', Sequence__c = 1,
+            Section_Content__c = '{"whereClause":"()","mainChildObject":"Opportunity","childLookupfieldAPIname":"AccountId","mainparentObject":"","SerialNumber":false,"subTotal":[],"newPage":false,"displayChart":false,"tablelistValues":["Name","Amount","Account.NumberOfEmployees"],"tablelistLabels":["Name","Amount","Account"],"grouping":"","dateFormat":"654/*","timeFormat":"124","numberFormat":"2","currencyFormat":"2"}');
+        sendEmailAutomation.handlerClassNameForTest = 'PlaceholderTestHandler';
+
+        run(templateId, account.Id);
+
+        System.assertEquals(1, [SELECT COUNT() FROM Attachment WHERE ParentId = :account.Id], 'the PDF is saved on the record');
+        System.assertEquals(0, [SELECT COUNT() FROM TransactionLog__c WHERE LogType__c = 'Exception']);
     }
 
     @IsTest
