@@ -577,7 +577,7 @@ public with sharing class MergeFieldsClass {
     private static String safeText(String value) {
         if (value == null) { return ''; }
         String safe = Pattern.compile('&(?!#?\\w+;)').matcher(value).replaceAll('&amp;');
-        if (!Pattern.compile('(?i)</?(p|br|b|i|u|s|strong|em|span|div|a|img|ul|ol|li|table|thead|tbody|tfoot|tr|th|td|h[1-6]|sub|sup|font|hr|blockquote|pre|code|small|big)(\s[^>]*)?/?>').matcher(safe).find()) {
+        if (!Pattern.compile('(?i)</?(p|br|b|i|u|s|strong|em|span|div|a|img|ul|ol|li|table|thead|tbody|tfoot|tr|th|td|h[1-6]|sub|sup|font|hr|blockquote|pre|code|small|big)(\\s[^>]*)?/?>').matcher(safe).find()) {
             safe = safe.replace('<', '&lt;').replace('>', '&gt;');
         }
         return safe;

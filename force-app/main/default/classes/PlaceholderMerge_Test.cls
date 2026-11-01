@@ -167,13 +167,14 @@ private class PlaceholderMerge_Test {
             new Map<String, Object>{ 'Items' => new List<Object>{
                 new Map<String, Object>{ 'Product' => 'Smith & Sons', 'Qty' => '$1,200' },
                 new Map<String, Object>{ 'Product' => 'a < b', 'Qty' => '<b>bold</b>' },
-                new Map<String, Object>{ 'Product' => 'Item <special> & more', 'Qty' => 'x' } } });
+                new Map<String, Object>{ 'Product' => 'Item <special> & more', 'Qty' => '<span style="color:red">hi</span>' } } });
 
         String content = merged.get('Lines');
         System.assert(content.contains('$1,200'), 'a dollar amount must survive: ' + content);
         System.assert(content.contains('Smith &amp; Sons'), 'an ampersand in text is escaped so the PDF page stays valid: ' + content);
         System.assert(content.contains('a &lt; b'), content);
         System.assert(content.contains('<td><b>bold</b></td>'), 'a value that is HTML is kept: ' + content);
+        System.assert(content.contains('<span style="color:red">hi</span>'), 'HTML with attributes is kept: ' + content);
         System.assert(content.contains('Item &lt;special&gt; &amp; more'), 'angle brackets around an unknown word are text, not a tag: ' + content);
     }
 
