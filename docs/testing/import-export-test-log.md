@@ -86,3 +86,30 @@ Retest with the real dialogs (target org already held the first, faulty import a
 | IE-O3 | The export file carries pictures as base64, so it is large (170 KB for two templates); the JSON preview in the dialog is not readable for it. |
 | IE-O4 | The first, faulty import is still in the target org as version 1 of both templates (wrong rule on all sections, no translations). Nothing was deleted. |
 | IE-O5 | Custom fields, record types and picklist values that sections or rules refer to are not migrated (outside templates); the target org has to have them. A pre-check for those is not built. |
+
+## Repeat migration by template family (2026-11-01, after the owner's clarification)
+
+Owner's intent: the External ID of a template is how a template is recognised in another org; migrating the same template again must add a **new version under that template**, never replace it.
+
+How the product models it (read from `SaveDocumentTemplate`): a new template has `Parent_Template__c` = itself, version 1, `External_ID__c` = its own Id; "New Version" gives the next version of the family (same `Parent_Template__c`), `External_ID__c` = the new record's own Id. So a template family is identified by the **External Id of its root**.
+
+What `TemplateMigration` does now:
+- Export: every template row carries `FamilyKey` = the External Id of its family's root.
+- Import: a template whose family key is already in the target org (a root with that External Id) becomes the **next version of that family** (`Parent_Template__c` = that root, version = highest + 1, own Id as External Id). Otherwise it starts a new family: it is its own root, version 1, and **keeps the source family key as its External Id**, so the next migration finds it. Several versions in one file are imported in version order under one root. Files from before this change (no key) fall back to the source root id, the template's external id, or the name.
+- Nothing is ever replaced.
+
+| # | Test | Result |
+|---|---|---|
+| IE11 | Apex (3 new tests, failing first): migrate to an org without the template, then twice more; version 2 of the source exported on its own and imported later; two versions in one file | Pass: one family, versions 1, 2, 3, every version under the first import as parent, root keeps the source family key, versions have their own Id as external id. |
+| IE12 | Real dialog in the target org, same file twice | Pass. First run: "ZZ Translation Test (version 1)" and "ZZ Clone Ctx (version 1)", each its own root; second run: both "(version 2)" under those roots (checked by SOQL: parent = the first import, external id = own Id). |
+
+Two product defects found while checking how families are made (Apex probe with the exact values the clone dialog sends), both FIXED with 4 new Apex tests (`TemplateCloneVersioning_Test`, failing first):
+
+| # | Defect | Status |
+|---|---|---|
+| V-D1 | **"New Version" of the first (root) template gave version 1 again**, not 2: the code compared the parent with the selected template, which is the same record for a root. | FIXED: the next version is the highest of the family plus 1. |
+| V-D2 | **"New Template" put the new template under the source as parent** (the dialog sent the source as parent), so it joined the source's family with version 1; a later New Version of it would have been numbered inside the other family. | FIXED: the dialog sends no parent for "New Template" and the server makes the new template its own root. |
+
+Existing data keeps its old shape: "ZZ Clone Ctx" in the source org still has "ZZ Clip Test" as parent (made before the fix), so it migrates into a family keyed by the Clip Test id. Templates created before the fix may need their parent corrected once.
+
+Also visible in the target org: the two first, faulty imports (before the redesign) have no parent and are not part of any family.

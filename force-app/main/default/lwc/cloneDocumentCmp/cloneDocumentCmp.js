@@ -51,7 +51,8 @@ cloneTypeOptionSelectedByUser = 'New_Version';
         
         docTempObj.DxCPQ__PDF_Page_Properties__c= this.jsonstr;
         if(this.cloneTypeOptionSelectedByUser == 'New_Template') {
-            docTempObj.DxCPQ__Parent_Template__c = this.recordId;
+            // a new template starts its own family: the server makes it its own parent
+            docTempObj.DxCPQ__Parent_Template__c = null;
             docTempObj.DxCPQ__Version_Number__c = 1;
         }
         

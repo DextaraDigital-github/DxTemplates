@@ -17,6 +17,8 @@ private class TemplateMigration_Test {
     private static Document_Template__c makeSource(String name, ContentVersion picture, ContentVersion watermark) {
         Document_Template__c template = new Document_Template__c(Name = name, Related_To_Type__c = relatedType(), Version_Number__c = 1, Description__c = 'Source description');
         insert template;
+        template.Parent_Template__c = template.Id;
+        template.External_ID__c = template.Id;
         template.Watermark_Data__c = '[{"name":"Text","isPrimary":true,"contentVersionID":"' + watermark.Id + '"}]';
         update template;
 
@@ -77,8 +79,10 @@ private class TemplateMigration_Test {
 
         Map<String, Object> result = TemplateMigration.importData(file);
 
-        Document_Template__c copy = [SELECT Id, Version_Number__c, Description__c, IsActive__c, Watermark_Data__c FROM Document_Template__c WHERE Name = 'Quote' AND Id != :source.Id];
-        System.assertEquals(2, copy.Version_Number__c, 'next version of the template with the same name');
+        Document_Template__c copy = [SELECT Id, Version_Number__c, Description__c, IsActive__c, Watermark_Data__c, Parent_Template__c, External_ID__c FROM Document_Template__c WHERE Name = 'Quote' AND Id != :source.Id];
+        System.assertEquals(2, copy.Version_Number__c, 'next version under the template the file came from');
+        System.assertEquals(source.Id, copy.Parent_Template__c, 'the same family');
+        System.assertEquals(copy.Id, copy.External_ID__c, 'a version has its own id as external id, like a clone');
         System.assertEquals('Source description', copy.Description__c);
         System.assertEquals(false, copy.IsActive__c);
         System.assertEquals(1, ((List<Object>) result.get('templates')).size());
@@ -132,6 +136,76 @@ private class TemplateMigration_Test {
 
         System.assertEquals(3, [SELECT COUNT() FROM Document_Template__c WHERE Name = 'Quote']);
         System.assertEquals(3, [SELECT MAX(Version_Number__c) m FROM Document_Template__c WHERE Name = 'Quote'][0].get('m'));
+    }
+
+    // The target org does not have the source's records: the first import makes the family, later imports add versions to it.
+    @IsTest
+    static void repeatedMigrationToAnotherOrgAddsVersionsUnderTheSameTemplate() {
+        Document_Template__c source = makeSource('Quote', makeFile('Logo'), makeFile('Mark'));
+        String sourceKey = source.Id;
+        String file = TemplateMigration.exportData(new List<String>{ source.Id });
+        delete [SELECT Id FROM Document_Template__c];   // as if the file were opened in an org that never had the template
+
+        TemplateMigration.importData(file);
+        Document_Template__c first = [SELECT Id, Version_Number__c, Parent_Template__c, External_ID__c FROM Document_Template__c];
+        System.assertEquals(1, first.Version_Number__c);
+        System.assertEquals(first.Id, first.Parent_Template__c, 'the first import is the root of the family');
+        System.assertEquals(sourceKey, first.External_ID__c, 'the root keeps the external id of the source family');
+
+        TemplateMigration.importData(file);   // the same template migrated again, for instance after a change
+        TemplateMigration.importData(file);
+
+        List<Document_Template__c> family = [SELECT Id, Version_Number__c, Parent_Template__c, External_ID__c FROM Document_Template__c ORDER BY Version_Number__c];
+        System.assertEquals(3, family.size());
+        System.assertEquals(1, family[0].Version_Number__c);
+        System.assertEquals(2, family[1].Version_Number__c);
+        System.assertEquals(3, family[2].Version_Number__c);
+        for (Document_Template__c version : family) {
+            System.assertEquals(first.Id, version.Parent_Template__c, 'every version under the same template');
+        }
+        System.assertEquals(family[1].Id, family[1].External_ID__c);
+        System.assertEquals(family[2].Id, family[2].External_ID__c);
+    }
+
+    @IsTest
+    static void aNewVersionOfTheSourceTemplateLandsInTheFamilyThatWasImportedBefore() {
+        Document_Template__c root = makeSource('Quote', makeFile('Logo'), makeFile('Mark'));
+        String firstFile = TemplateMigration.exportData(new List<String>{ root.Id });
+        // a second version of the source template, as the designer's "New Version" makes it
+        Document_Template__c version2 = new Document_Template__c(Name = 'Quote', Related_To_Type__c = relatedType(), Parent_Template__c = root.Id, Version_Number__c = 2);
+        insert version2;
+        version2.External_ID__c = version2.Id;
+        update version2;
+        insert new Document_Template_Section__c(Name = 'Added later', Document_Template__c = version2.Id, Type__c = 'Context', Sequence__c = 0, Section_Content__c = '<p>v2</p>');
+        String secondFile = TemplateMigration.exportData(new List<String>{ version2.Id });
+        delete [SELECT Id FROM Document_Template__c];
+
+        TemplateMigration.importData(firstFile);   // the target org gets the family
+        TemplateMigration.importData(secondFile);  // later: version 2 of the source, exported on its own
+
+        List<Document_Template__c> family = [SELECT Id, Version_Number__c, Parent_Template__c FROM Document_Template__c ORDER BY Version_Number__c];
+        System.assertEquals(2, family.size(), 'one family, not two');
+        System.assertEquals(family[0].Id, family[1].Parent_Template__c);
+        System.assertEquals(2, family[1].Version_Number__c);
+        System.assertEquals(1, [SELECT COUNT() FROM Document_Template_Section__c WHERE Document_Template__c = :family[1].Id AND Name = 'Added later']);
+    }
+
+    @IsTest
+    static void severalVersionsInOneFileAreImportedInOrderUnderOneTemplate() {
+        Document_Template__c root = makeSource('Quote', makeFile('Logo'), makeFile('Mark'));
+        Document_Template__c version2 = new Document_Template__c(Name = 'Quote', Related_To_Type__c = relatedType(), Parent_Template__c = root.Id, Version_Number__c = 2);
+        insert version2;
+        String file = TemplateMigration.exportData(new List<String>{ version2.Id, root.Id });
+        delete [SELECT Id FROM Document_Template__c];
+
+        TemplateMigration.importData(file);
+
+        List<Document_Template__c> family = [SELECT Id, Version_Number__c, Parent_Template__c, External_ID__c FROM Document_Template__c ORDER BY Version_Number__c];
+        System.assertEquals(2, family.size());
+        System.assertEquals(family[0].Id, family[0].Parent_Template__c);
+        System.assertEquals(family[0].Id, family[1].Parent_Template__c);
+        System.assertEquals(1, family[0].Version_Number__c);
+        System.assertEquals(2, family[1].Version_Number__c);
     }
 
     @IsTest

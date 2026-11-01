@@ -54,10 +54,12 @@ public with sharing class SaveDocumentTemplate {
     public static Document_Template__c cloneDocumentTemplate(Document_Template__c docTemp, Id docTempId)	{
         try	{
             List<Document_Template_Section__c> docTempSec = [SELECT ID, Name, IsActive__c, New_Page__c, Section_Content__c, Sequence__c, Section_Details__c, Type__c, Document_Clause__c, ruleId__c, Section_Visibility_Rule__c, Header_Content__c FROM Document_Template_Section__c WHERE Document_Template__c=:docTempId WITH SECURITY_ENFORCED limit 50000];
-            List<Document_Template__c> docCloneTemplate = [SELECT ID, Name,Version_Number__c,Watermark_Data__c,PDF_Page_Properties__c, FlowId__c, ClassId__c  FROM Document_Template__c WHERE Parent_Template__c= :docTemp.Parent_Template__c WITH SECURITY_ENFORCED order by Version_Number__c desc limit 1];
+            // "New Version" comes with the parent of the selected template (the family); "New Template" comes with no parent and starts its own family.
+            Boolean isNewTemplate = docTemp != null && docTemp.Parent_Template__c == null;
+            List<Document_Template__c> docCloneTemplate = isNewTemplate ? new List<Document_Template__c>() : [SELECT ID, Name,Version_Number__c,Watermark_Data__c,PDF_Page_Properties__c, FlowId__c, ClassId__c  FROM Document_Template__c WHERE Parent_Template__c= :docTemp.Parent_Template__c WITH SECURITY_ENFORCED order by Version_Number__c desc limit 1];
             
             if(docTemp!=null){
-                docTemp.Version_Number__c = (docTemp.Parent_Template__c != docTempId) ? docCloneTemplate[0].Version_Number__c + 1 : 1;
+                docTemp.Version_Number__c = docCloneTemplate.isEmpty() ? 1 : docCloneTemplate[0].Version_Number__c + 1;
                 if (sp1 == null) sp1 = Database.setSavepoint();
                 Database.SaveResult[] urListsave = safe.doInsert(new List<Document_Template__c> {docTemp});
 
@@ -71,6 +73,7 @@ public with sharing class SaveDocumentTemplate {
                     if (sr.isSuccess()) {
                         docTemp.Id = sr.getId();
                         docTemp.External_ID__c = docTemp.Id;
+                        if (isNewTemplate) { docTemp.Parent_Template__c = docTemp.Id; }
                         docTempId = docTemp.Id;
                         if (sp1 == null) sp1 = Database.setSavepoint();
                         Database.UpsertResult[] urList2 = safe.doupsert(docTemp);

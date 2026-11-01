@@ -6,7 +6,8 @@
  * nothing is created. Files that the templates use (watermark files and pictures in the text) travel in the file and are
  * created again in the target org, and the ids in the text are rewritten.
  *
- * Importing a template whose name already exists makes the next version of it.
+ * Repeat migration: a template whose family (the External Id of its first template) is already in the target org becomes the next
+ * version of that family; nothing is replaced. Otherwise it starts a new family.
  */
 public with sharing class TemplateMigration {
     private static final Integer MAX_FILE_BYTES = 2500000;
@@ -88,7 +89,7 @@ public with sharing class TemplateMigration {
 
             Map<String, Object> file = new Map<String, Object>();
             file.put('Format', 2);
-            file.put('Templates', templates);
+            file.put('Templates', templateRows(templates));
             file.put('Template Sections', sections);
             file.put('Document Clauses', clauses);
             file.put('Rules', rules);
@@ -102,6 +103,26 @@ public with sharing class TemplateMigration {
         } catch (Exception e) {
             throw fail('The export failed: ' + e.getMessage());
         }
+    }
+
+    // The templates as rows of the file, each with the key of its family: the External Id of the family's first template (the root).
+    private static List<Object> templateRows(List<Document_Template__c> templates) {
+        Set<Id> rootIds = new Set<Id>();
+        for (Document_Template__c template : templates) {
+            if (template.Parent_Template__c != null) { rootIds.add(template.Parent_Template__c); }
+        }
+        Map<Id, Document_Template__c> roots = new Map<Id, Document_Template__c>([SELECT Id, External_ID__c FROM Document_Template__c WHERE Id IN :rootIds WITH USER_MODE]);
+        List<Object> rows = new List<Object>();
+        for (Document_Template__c template : templates) {
+            Map<String, Object> row = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(template));
+            Document_Template__c root = roots.get(template.Parent_Template__c);
+            String key = String.valueOf(template.Id);
+            if (root != null) { key = String.isNotBlank(root.External_ID__c) ? root.External_ID__c : String.valueOf(root.Id); }
+            else if (String.isNotBlank(template.External_ID__c)) { key = template.External_ID__c; }
+            row.put('FamilyKey', key);
+            rows.add(row);
+        }
+        return rows;
     }
 
     private static void collectFileIds(String text, Set<String> found) {
@@ -143,29 +164,49 @@ public with sharing class TemplateMigration {
 
     private static Map<String, Object> run(Map<String, Object> file) {
         List<String> warnings = new List<String>();
-        List<Map<String, Object>> sourceTemplates = records(file, 'Templates');
+        // templates: one that belongs to a family already in this org becomes the next version of it (nothing is replaced);
+        // otherwise it starts a family. The family is known by the External Id of its first template (the root).
+        List<Map<String, Object>> sourceTemplates = sortedByVersion(records(file, 'Templates'));
         checkRelatedTypes(sourceTemplates);
-
-        // templates, numbered as the next version of a template with the same name
-        Set<String> names = new Set<String>();
-        for (Map<String, Object> source : sourceTemplates) { names.add((String) source.get('Name')); }
-        Map<String, Decimal> latest = new Map<String, Decimal>();
-        for (Document_Template__c existing : [SELECT Name, Version_Number__c FROM Document_Template__c WHERE Name IN :names WITH USER_MODE]) {
-            Decimal version = existing.Version_Number__c == null ? 0 : existing.Version_Number__c;
-            if (!latest.containsKey(existing.Name) || latest.get(existing.Name) < version) { latest.put(existing.Name, version); }
-        }
+        Map<String, Document_Template__c> familyRoot = findFamilies(sourceTemplates);
+        Map<Id, Integer> latestVersion = latestVersions(familyRoot.values());
+        Map<String, Integer> nextVersion = new Map<String, Integer>();
+        Map<String, Integer> newRootIndex = new Map<String, Integer>();
+        List<String> familyKeys = new List<String>();
         List<Document_Template__c> templates = new List<Document_Template__c>();
         for (Map<String, Object> source : sourceTemplates) {
             Document_Template__c template = (Document_Template__c) JSON.deserialize(JSON.serialize(only(source, TEMPLATE_FIELDS)), Document_Template__c.class);
-            Decimal version = (latest.containsKey(template.Name) ? latest.get(template.Name) : 0) + 1;
-            latest.put(template.Name, version);
-            template.Version_Number__c = version;
+            String key = familyKey(source);
+            Document_Template__c existingRoot = familyRoot.get(key);
+            if (!nextVersion.containsKey(key)) {
+                nextVersion.put(key, existingRoot == null ? 1 : (latestVersion.containsKey(existingRoot.Id) ? latestVersion.get(existingRoot.Id) : 0) + 1);
+            }
+            template.Version_Number__c = nextVersion.get(key);
+            nextVersion.put(key, nextVersion.get(key) + 1);
+            if (existingRoot != null) {
+                template.Parent_Template__c = existingRoot.Id;
+            } else if (!newRootIndex.containsKey(key)) {
+                newRootIndex.put(key, templates.size());
+            }
             templates.add(template);
+            familyKeys.add(key);
             if (String.isNotBlank((String) value(source, 'ClassId__c')) || String.isNotBlank((String) value(source, 'FlowId__c'))) {
                 warnings.add('Template "' + template.Name + '" uses an Apex class or a flow of the source org; set it again in this org.');
             }
         }
         insert as user templates;
+        for (Integer i = 0; i < templates.size(); i++) {
+            String key = familyKeys[i];
+            if (familyRoot.containsKey(key)) {
+                templates[i].External_ID__c = templates[i].Id;               // a new version has its own id as external id, like a clone
+            } else if (newRootIndex.get(key) == i) {
+                templates[i].Parent_Template__c = templates[i].Id;           // the first template of a new family is its root
+                templates[i].External_ID__c = key.startsWith('name:') ? String.valueOf(templates[i].Id) : key;
+            } else {
+                templates[i].Parent_Template__c = templates[newRootIndex.get(key)].Id;
+                templates[i].External_ID__c = templates[i].Id;
+            }
+        }
         Map<String, Document_Template__c> templateBySourceId = new Map<String, Document_Template__c>();
         for (Integer i = 0; i < templates.size(); i++) { templateBySourceId.put((String) sourceTemplates[i].get('Id'), templates[i]); }
 
@@ -257,6 +298,66 @@ public with sharing class TemplateMigration {
             'files' => newFileId.size() / 2,
             'warnings' => warnings
         };
+    }
+
+    // The key of the template family in the file: the External Id of the family's first template (the root), written by the export.
+    // Older files have no such key: the id of the source root, the template's own external id, or at last its name.
+    private static String familyKey(Map<String, Object> source) {
+        String key = (String) source.get('FamilyKey');
+        if (String.isNotBlank(key)) { return key; }
+        String parent = (String) value(source, 'Parent_Template__c');
+        if (String.isNotBlank(parent)) { return parent; }
+        String external = (String) value(source, 'External_ID__c');
+        return String.isNotBlank(external) ? external : 'name:' + source.get('Name');
+    }
+
+    // The first template (root) of each family of the file that already exists in this org.
+    private static Map<String, Document_Template__c> findFamilies(List<Map<String, Object>> sourceTemplates) {
+        Set<String> keys = new Set<String>();
+        Set<String> names = new Set<String>();
+        for (Map<String, Object> source : sourceTemplates) {
+            String key = familyKey(source);
+            keys.add(key);
+            if (key.startsWith('name:')) { names.add((String) source.get('Name')); }
+        }
+        Map<String, Document_Template__c> roots = new Map<String, Document_Template__c>();
+        for (Document_Template__c candidate : [SELECT Id, Name, External_ID__c, Parent_Template__c FROM Document_Template__c WHERE External_ID__c IN :keys OR Name IN :names WITH USER_MODE ORDER BY CreatedDate]) {
+            if (candidate.Id != candidate.Parent_Template__c) { continue; }
+            if (keys.contains(candidate.External_ID__c) && !roots.containsKey(candidate.External_ID__c)) { roots.put(candidate.External_ID__c, candidate); }
+            if (names.contains(candidate.Name) && !roots.containsKey('name:' + candidate.Name)) { roots.put('name:' + candidate.Name, candidate); }
+        }
+        return roots;
+    }
+
+    private static Map<Id, Integer> latestVersions(List<Document_Template__c> roots) {
+        Set<Id> rootIds = new Set<Id>();
+        for (Document_Template__c root : roots) { rootIds.add(root.Id); }
+        Map<Id, Integer> latest = new Map<Id, Integer>();
+        for (AggregateResult row : [SELECT Parent_Template__c parent, MAX(Version_Number__c) newest FROM Document_Template__c WHERE Parent_Template__c IN :rootIds WITH USER_MODE GROUP BY Parent_Template__c]) {
+            Decimal newest = (Decimal) row.get('newest');
+            latest.put((Id) row.get('parent'), newest == null ? 0 : newest.intValue());
+        }
+        return latest;
+    }
+
+    // Versions of a family are imported in the order of their version numbers.
+    private static List<Map<String, Object>> sortedByVersion(List<Map<String, Object>> templates) {
+        List<Map<String, Object>> sorted = new List<Map<String, Object>>(templates);
+        for (Integer i = 0; i < sorted.size(); i++) {
+            for (Integer j = i + 1; j < sorted.size(); j++) {
+                if (versionOf(sorted[j]) < versionOf(sorted[i])) {
+                    Map<String, Object> swap = sorted[i];
+                    sorted[i] = sorted[j];
+                    sorted[j] = swap;
+                }
+            }
+        }
+        return sorted;
+    }
+
+    private static Decimal versionOf(Map<String, Object> template) {
+        Object version = value(template, 'Version_Number__c');
+        return version == null ? 0 : Decimal.valueOf(String.valueOf(version));
     }
 
     private static void checkRelatedTypes(List<Map<String, Object>> sourceTemplates) {
