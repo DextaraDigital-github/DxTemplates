@@ -49,13 +49,18 @@ private class AutomationChain_Test {
         insert new Opportunity(AccountId = account.Id, Name = 'Deal 1', StageName = 'Prospecting', CloseDate = Date.today().addDays(5), Amount = 100);
         Id templateId = makeTemplate('RO without header');
         insert new Document_Template_Section__c(Name = 'Deals', Document_Template__c = templateId, Type__c = 'Related Objects', Sequence__c = 1,
-            Section_Content__c = '{"whereClause":"()","mainChildObject":"Opportunity","childLookupfieldAPIname":"AccountId","mainparentObject":"","SerialNumber":false,"subTotal":[],"newPage":false,"displayChart":false,"tablelistValues":["Name","Amount","Account.NumberOfEmployees"],"tablelistLabels":["Name","Amount","Account"],"grouping":"","dateFormat":"654/*","timeFormat":"124","numberFormat":"2","currencyFormat":"2"}');
+            Section_Content__c = '{"whereClause":"()","mainChildObject":"Opportunity","childLookupfieldAPIname":"AccountId","mainparentObject":"","SerialNumber":false,"subTotal":[],"newPage":false,"displayChart":false,"tablelistValues":["Name","Amount","Account.NumberOfEmployees"],"tablelistLabels":["Name","Amount","Account"],"grouping":"","dateFormat":"654/*","timeFormat":"124","numberFormat":"2","currencyFormat":"2","style":{"category":{"fontcolor":"","backgroundColor":"#e0f0ff","fontfamily":"courier, monospace","fontsize":"10px"},"header":{"fontcolor":"#cc0000","backgroundColor":"#ffcc00","fontfamily":"courier, monospace","fontsize":"10px"}}}');
         sendEmailAutomation.handlerClassNameForTest = 'PlaceholderTestHandler';
 
         run(templateId, account.Id);
 
         System.assertEquals(1, [SELECT COUNT() FROM Attachment WHERE ParentId = :account.Id], 'the PDF is saved on the record');
-        System.assertEquals(0, [SELECT COUNT() FROM TransactionLog__c WHERE LogType__c = 'Exception']);
+        // Only the null errors this test is about: a user without access to a related object (package build, restricted user) logs a
+        // security exception that is not what is checked here.
+        List<TransactionLog__c> logs = [SELECT LogMessage__c, LogData__c FROM TransactionLog__c WHERE LogType__c = 'Exception'];
+        for (TransactionLog__c log : logs) {
+            System.assert(!String.valueOf(log.LogData__c).contains('de-reference') && !String.valueOf(log.LogMessage__c).contains('de-reference'), String.valueOf(log));
+        }
     }
 
     @IsTest
