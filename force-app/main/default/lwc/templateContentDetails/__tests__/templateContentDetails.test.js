@@ -5,6 +5,8 @@ import saveDocumentTemplateSectionDetails from '@salesforce/apex/SaveDocumentTem
 import deletetemplate from '@salesforce/apex/SaveDocumentTemplatesection.deletetemplate';
 import gettemplatesectiondata from '@salesforce/apex/SaveDocumentTemplatesection.gettemplatesectiondata';
 import deleteContentVersions from '@salesforce/apex/ScreenshotController.deleteContentVersions';
+import getOriginalImageIds from '@salesforce/apex/ScreenshotController.getOriginalImageIds';
+import getImageBase64 from '@salesforce/apex/ScreenshotController.getImageBase64';
 import getSObjectListFiltering from '@salesforce/apex/RelatedObjectsClass.getSObjectListFiltering';
 
 jest.mock('c/dxApexCache', () => ({ getDomainUrl: jest.fn() }));
@@ -30,6 +32,9 @@ jest.mock('@salesforce/apex/RelatedObjectsClass.createRuleCondition', () => ({ _
 jest.mock('@salesforce/apex/RelatedObjectsClass.getExistingConditions', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
 jest.mock('@salesforce/apex/RelatedObjectsClass.handleTemplateRuleResetCondition', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
 jest.mock('@salesforce/apex/ScreenshotController.deleteContentVersions', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
+jest.mock('@salesforce/apex/ScreenshotController.getOriginalImageIds', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
+jest.mock('@salesforce/apex/ScreenshotController.getImageBase64', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
+jest.mock('@salesforce/apex/ScreenshotController.saveImageBase64', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
 jest.mock('@salesforce/apex/FooterClass.getSearchedContentVersions', () => ({ __esModule: true, default: jest.fn() }), { virtual: true });
 
 // Microtasks only, so it also works while timers are faked.
@@ -323,6 +328,108 @@ describe('c-template-content-details', () => {
         await flush();
 
         expect(savedContent()).toBe(stored);
+    });
+
+    describe('Resize Image', () => {
+        const url = id => '/sfc/servlet.shepherd/version/download/' + id;
+        const TWO_IMAGES = `<p><img src="${url('068AAA')}" style="width:50px;height:20px;"></p><p><img src="${url('068BBB')}"></p>`;
+        // natural sizes by file: AAA is not measured (its size comes from the style), the original is big, the copy small
+        const NATURAL = { '068ORIG': [800, 400], '068BBB': [100, 50] };
+
+        beforeEach(() => {
+            getImageBase64.mockResolvedValue('AAAA');
+            HTMLCanvasElement.prototype.getContext = () => ({ clearRect() {}, drawImage() {} });
+            HTMLCanvasElement.prototype.toDataURL = () => 'data:image/png;base64,AAAA';
+            getOriginalImageIds.mockImplementation(({ cvIds }) => Promise.resolve(Object.fromEntries(cvIds.map(id => [id, id === '068BBB' ? '068ORIG' : id]))));
+            global.Image = class {
+                set src(value) {
+                    this.currentSrc = value;
+                    const size = NATURAL[value.split('/').pop()] || [10, 10];
+                    [this.naturalWidth, this.naturalHeight] = size;
+                    Promise.resolve().then(() => this.onload && this.onload());
+                }
+            };
+        });
+
+        const resizeButton = element => [...element.shadowRoot.querySelectorAll('lightning-rich-text-toolbar-button')]
+            .find(b => b.iconAlternativeText === 'Resize Image');
+        const childImages = element => element.shadowRoot.querySelector('c-image-resize-c-m-p').images;
+        // The dialog is taken out of the page once it closes, so keep hold of the element for a later event.
+        const closeDialog = (child, detail) => child.dispatchEvent(new CustomEvent('closemodal', { detail }));
+
+        async function openResize(element) {
+            resizeButton(element).click();
+            await flush();
+            jest.runAllTimers();
+            await flush();
+        }
+
+        it('offers a Resize Image button in the editor toolbar', async () => {
+            const element = await openSavedSection(TWO_IMAGES);
+            expect(resizeButton(element)).toBeTruthy();
+        });
+
+        it('lists the images in the order they appear and goes back to the full-size original of a resized copy', async () => {
+            const element = await openSavedSection(TWO_IMAGES);
+            await openResize(element);
+
+            const images = childImages(element);
+            expect(images).toHaveLength(2);
+            expect(images[0]).toMatchObject({ id: 0, cvId: '068AAA', width: 50, height: 20 });
+            expect(images[0].rcvid).toBeUndefined();
+            expect(images[1]).toMatchObject({ id: 1, cvId: '068ORIG', rcvid: '068BBB', width: 800, height: 400, rwidth: 100, rheight: 50 });
+            expect(images[1].URL).toBe(url('068ORIG'));
+        });
+
+        it('puts the new copy into the text and cleans up the copy it replaced', async () => {
+            const element = await openSavedSection(TWO_IMAGES);
+            await openResize(element);
+            const child = element.shadowRoot.querySelector('c-image-resize-c-m-p');
+            closeDialog(child, {
+                process: 'Save',
+                cvLst: ['068NEW'],
+                imagesJSON: [
+                    { oCVID: '068AAA', rCVID: undefined },
+                    { oCVID: '068ORIG', rCVID: '068NEW' }
+                ]
+            });
+            await flush();
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(savedContent()).toContain(url('068NEW'));
+            expect(savedContent()).not.toContain('068BBB');
+            const [args] = deleteContentVersions.mock.calls[0];
+            expect(args.rCVIDs).toContain('068NEW');
+            expect(args.allCVs).toEqual(expect.arrayContaining(['068NEW', '068BBB']));
+        });
+
+        it('ignores what a cancelled dialog reports when the section is saved', async () => {
+            const element = await openSavedSection(TWO_IMAGES);
+            await openResize(element);
+            const child = element.shadowRoot.querySelector('c-image-resize-c-m-p');
+            closeDialog(child, { process: 'Save', cvLst: ['068NEW'], imagesJSON: [{ oCVID: '068AAA' }, { oCVID: '068ORIG', rCVID: '068NEW' }] });
+            await flush();
+            closeDialog(child, { process: 'Cancel', cvLst: ['068NEW', '068DROP'], imagesJSON: [{ oCVID: '068AAA' }, { oCVID: '068ORIG', rCVID: '068DROP' }] });
+            await flush();
+
+            button(element, 'Save').click();
+            await flush();
+
+            expect(savedContent()).toContain(url('068NEW'));
+            const [args] = deleteContentVersions.mock.calls[0];
+            expect(args.rCVIDs).toContain('068NEW');
+            expect(args.rCVIDs).not.toContain('068DROP');
+            expect(args.allCVs).toContain('068DROP');
+        });
+
+        it('tells the user when the section has no image', async () => {
+            const element = await openSavedSection('<p>No pictures</p>');
+            await openResize(element);
+            expect(element.shadowRoot.querySelector('c-image-resize-c-m-p')).toBeNull();
+            expect(element.shadowRoot.textContent).toContain('There are no Images');
+        });
     });
 
     describe('Clause section', () => {

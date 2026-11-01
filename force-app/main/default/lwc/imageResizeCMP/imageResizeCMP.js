@@ -68,11 +68,11 @@ export default class Poc_RTA extends LightningElement {
                 oCVID: image.cvId,
                 oWidth: image.oWidth,
                 oHeight: image.oHeight,
-                rCVID: image.rCVID,
+                rCVID: image.rcvid,
                 rWidth: image.width,
                 rHeight: image.height,
-                prevRWidth: 0,
-                prevRHeight: 0,
+                prevRWidth: image.width,
+                prevRHeight: image.height,
                 base64: null,
                 isModified: false,
             };
@@ -101,12 +101,6 @@ export default class Poc_RTA extends LightningElement {
         const imageId = event.target.dataset.id;
         this.selectedImage = this.imageLst.find(img => img.id == imageId);
         if (this.selectedImage) {
-            if (this.selectedImage.width > 500) {
-                this.selectedImage.width = 500;
-            }
-            if (this.selectedImage.height > 500) {
-                this.selectedImage.height = 500;
-            }
             this.width = this.selectedImage.width;
             this.height = this.selectedImage.height;
             this.adjustCanvasSize(this.selectedImage.width, this.selectedImage.height).then(() => {
@@ -144,7 +138,7 @@ export default class Poc_RTA extends LightningElement {
     handleImagePropertiesChange(e) {
         const label = e.target.label;
         const value = parseInt(e.target.value, 10);
-        if (!this.selectedImage) {
+        if (!this.selectedImage || !(value > 0)) {
             return;
         }
 
@@ -156,11 +150,12 @@ export default class Poc_RTA extends LightningElement {
             this.height = value;
         }
 
-        if (this.width > 500) {
-            this.width = 500;
+        // An image cannot be made larger than its original (that only blurs it); nothing else limits the size.
+        if (this.selectedImage.oWidth && this.width > this.selectedImage.oWidth) {
+            this.width = this.selectedImage.oWidth;
         }
-        if (this.height > 500) {
-            this.height = 500;
+        if (this.selectedImage.oHeight && this.height > this.selectedImage.oHeight) {
+            this.height = this.selectedImage.oHeight;
         }
 
         updatedImage.width = this.width;
@@ -362,8 +357,8 @@ export default class Poc_RTA extends LightningElement {
                     this.base64Data = dataURL;
                     this.imageUrl = 'data:image/png;base64,' + dataURL;
                      this.cvStyle =  `width: ${this.selectedImage.width}px; height: ${this.selectedImage.height}px; border: 1px solid black;`;
-                     let width = this.selectedImage.width > 500 ? 500 : this.selectedImage.width;
-                     let height = this.selectedImage.height > 500 ? 500 : this.selectedImage.height;
+                     let width = this.selectedImage.width;
+                     let height = this.selectedImage.height;
                     this.adjustCanvasSize(width, height).then(() => {
                         this.drawImageOnCanvas(this.imageUrl, width, height);
                         this.isLoaded = false;
@@ -523,32 +518,27 @@ export default class Poc_RTA extends LightningElement {
                             // Only after taking the screenshot, update the imagesJSON
                             const imagePromises = this.imagesJSON.map(imgJSON => {
                                 if (imgJSON.oCVID === this.selectedImage.cvId) {
-                                    if (
-                                        imgJSON.rWidth === imgJSON.prevRWidth &&
-                                        imgJSON.rHeight === imgJSON.prevRHeight &&
-                                        imgJSON.rWidth === imgJSON.oWidth &&
-                                        imgJSON.rHeight === imgJSON.oHeight
-                                    ) {
+                                    const markSaved = () => {
+                                        imgJSON.prevRWidth = imgJSON.rWidth;
+                                        imgJSON.prevRHeight = imgJSON.rHeight;
+                                        imgJSON.base64 = '';
+                                        imgJSON.isModified = false;
+                                        const imageInLst = this.imageLst.find(img => img.cvId === imgJSON.oCVID);
+                                        if (imageInLst) {
+                                            imageInLst.isModified = false;
+                                            imageInLst.style = 'border: 1px solid #cbcbcb;';
+                                        }
+                                    };
+                                    if (imgJSON.rWidth === imgJSON.oWidth && imgJSON.rHeight === imgJSON.oHeight) {
+                                        // full size again: use the original file, no copy needed
                                         imgJSON.rCVID = imgJSON.oCVID;
+                                        markSaved();
                                     } else if (imgJSON.rWidth !== imgJSON.prevRWidth || imgJSON.rHeight !== imgJSON.prevRHeight) {
-                                        console.log('its good to save this image ');
-                                        // Save base64 data in Apex and get new Content Version Id (rCVID)
-                                        return saveImageBase64({ base64Data: imgJSON.base64 })
+                                        return saveImageBase64({ base64Data: imgJSON.base64, originalCvId: imgJSON.oCVID })
                                             .then(newCVID => {
-                                                console.log('newCVID after saving image in CV --> ', newCVID);
                                                 this.cvLst.push(newCVID);
-                                                console.log('this.cvLst inside the RTA cmp ---> ', this.cvLst);
                                                 imgJSON.rCVID = newCVID;
-                                                imgJSON.prevRWidth = imgJSON.rWidth;
-                                                imgJSON.prevRHeight = imgJSON.rHeight;
-                                                imgJSON.base64 = '';
-                                                imgJSON.isModified = false;
-                                                const imageInLst = this.imageLst.find(img => img.cvId === imgJSON.oCVID);
-                                                if (imageInLst) {
-                                                    imageInLst.isModified = false;
-                                                    imageInLst.style = 'border: 1px solid #cbcbcb;';
-                                                }
-
+                                                markSaved();
                                                 return imgJSON;
                                             })
                                             .catch(error => {

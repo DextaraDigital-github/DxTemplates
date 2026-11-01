@@ -1,11 +1,17 @@
+.dx-image-card {
+    position: relative;
+}
+
 .modified-icon-tick {
-	position: relative;
-    left: -47px;
-    top: -155px;
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    cursor: pointer;
 }
 
 .modified-icon-cross {
-	position: relative;
-    right: -47px;
-    top: -155px;
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    cursor: pointer;
 }

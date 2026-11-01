@@ -11,7 +11,8 @@ import createRuleCondition from '@salesforce/apex/RelatedObjectsClass.createRule
 import getConditions from '@salesforce/apex/RelatedObjectsClass.getExistingConditions';
 import { getDomainUrl } from 'c/dxApexCache';
 import { upgradeEditorFonts } from 'c/dxPdfFonts';
-import deleteContentVersions from '@salesforce/apex/ScreenshotController.deleteContentVersions'; 
+import deleteContentVersions from '@salesforce/apex/ScreenshotController.deleteContentVersions';
+import getOriginalImageIds from '@salesforce/apex/ScreenshotController.getOriginalImageIds';
 import getSearchedContentVersions from '@salesforce/apex/FooterClass.getSearchedContentVersions';
 import { createRuleConditionHierarcy } from 'c/conditionUtil';
 import resetRulesForTemplate from '@salesforce/apex/RelatedObjectsClass.handleTemplateRuleResetCondition';
@@ -964,146 +965,79 @@ this.modifyRichTextVal();
   }
 
 
-  handleResizeImage(event) {
+  // Opens the image editor with every image of the text, in the order they appear. An image that is already a
+  // resized copy is offered as its full-size original again (the editor resizes from the original, never from a copy).
+  handleResizeImage() {
     this.reloadVar = false;
-    const imgTagRegexWithStyle = /<img[^>]+src="([^">]+)"[^>]*style="([^"]*)"/g;
-    const imgTagRegexWithoutStyle = /<img[^>]+src="([^">]+)"/g;
-    this.srcs = [];
-    let matches;
-    let val = 0;
-    const processedUrls = new Set();
+    const found = [];
+    const imgTag = /<img\b[^>]*>/gi;
+    let tag;
+    while ((tag = imgTag.exec(this.updatedRichTextVal)) !== null) {
+      const src = /\ssrc="([^"]+)"/i.exec(tag[0]);
+      if (!src) { continue; }
+      const style = /\sstyle="([^"]*)"/i.exec(tag[0]);
+      const width = style && /width:\s*(\d+)px/.exec(style[1]);
+      const height = style && /height:\s*(\d+)px/.exec(style[1]);
+      found.push({ URL: src[1], cvId: src[1].split('/').pop(), width: width ? Number(width[1]) : null, height: height ? Number(height[1]) : null });
+    }
+    this.showNoImgErr = found.length === 0;
+    if (found.length === 0) {
+      this.srcs = [];
+      this.showResizeModal = false;
+      this.template.querySelector('[data-id="poc"]').show();
+      return;
+    }
 
-    // First process images with style attributes
-    while ((matches = imgTagRegexWithStyle.exec(this.updatedRichTextVal)) !== null) {
-        const src = matches[1];
-        const styleString = matches[2];
-
-        let width = null;
-        let height = null;
-
-        const widthMatch = /width:\s*(\d+)px/.exec(styleString);
-        const heightMatch = /height:\s*(\d+)px/.exec(styleString);
-
-        if (widthMatch) {
-            width = widthMatch[1];
-        }
-
-        if (heightMatch) {
-            height = heightMatch[1];
-        }
-
-        this.srcs.push({
-          id: val,
-          // URL: src.includes(this.domainbaseUrl) ? src : this.domainbaseUrl + src,
-          URL :src,
-          width: width,
-          height: height,
-          cvId: src.split('/').pop()
+    getOriginalImageIds({ cvIds: found.map(image => image.cvId) })
+      .then(originals => {
+        this.srcs = found.map((image, index) => {
+          const originalId = (originals && originals[image.cvId]) || image.cvId;
+          if (originalId === image.cvId) {
+            return { id: index, ...image };
+          }
+          return { id: index, URL: image.URL.replace(/[^/]+$/, originalId), cvId: originalId, rcvid: image.cvId, currentURL: image.URL, width: null, height: null };
         });
-
-        processedUrls.add(src);
-        val++;
-    }
-
-    // Now process images without style attributes, skipping already processed URLs
-    while ((matches = imgTagRegexWithoutStyle.exec(this.updatedRichTextVal)) !== null) {
-        const src = matches[1];
-
-        if (!processedUrls.has(src)) {
-            this.srcs.push({
-                id: val,
-                URL :src,
-                // URL: src.includes(this.domainbaseUrl) ? src : this.domainbaseUrl + src,
-                width: null,
-                height: null,
-                cvId: src.split('/').pop()
-            });
-
-            val++;
-        }
-    }
-
-    this.showNoImgErr = this.srcs.length > 0 ? false : true;
-
-    this.fetchImageDimensions().then(() => {
-        if (this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c) {
-            const resizedImagesData = JSON.parse(this.Recorddetailsnew.DxCPQ__Resized_Images_Data__c);
-            this.srcs = this.srcs.map(src => {
-                const resizedImageData = resizedImagesData.find(image => image.rCVID === src.cvId);
-                if (resizedImageData) {
-                    return {
-                        ...src,
-                        width: resizedImageData.oWidth,
-                        height: resizedImageData.oHeight,
-                        rwidth: resizedImageData.rWidth,
-                        rheight: resizedImageData.rHeight,
-                        cvId: resizedImageData.oCVID,
-                        rcvid: resizedImageData.rCVID,
-                        URL: src.URL.replace(/[^/]+$/, resizedImageData.oCVID)
-                    };
-                }
-                return src;
-            });
-        }
-        else if(this.imagesJSON.length > 0){
-          console.log('this.imagesJSON inside fetchImageDimensions ---> ', this.imagesJSON);
-          this.srcs = this.srcs.map(src => {
-                const resizedImageData = this.imagesJSON.find(image => image.rCVID === src.cvId);
-                if (resizedImageData) {
-                    return {
-                        ...src,
-                        width: resizedImageData.oWidth,
-                        height: resizedImageData.oHeight,
-                        rwidth: resizedImageData.rWidth,
-                        rheight: resizedImageData.rHeight,
-                        cvId: resizedImageData.oCVID,
-                        rcvid: resizedImageData.rCVID,
-                        URL: src.URL.replace(/[^/]+$/, resizedImageData.oCVID)
-                    };
-                }
-                return src;
-            });
-        }
-
+        return this.fetchImageDimensions();
+      })
+      .then(() => {
+        // A copy that this edit replaces must be cleaned up when the section is saved.
+        this.srcs.filter(image => image.rcvid && !this.cvLst.includes(image.rcvid)).forEach(image => this.cvLst.push(image.rcvid));
         this.showMergeField = false;
         this.isModalOpen = false;
-        this.showResizeModal = this.srcs.length > 0? true : false;
+        this.showResizeModal = true;
         this.template.querySelector('[data-id="poc"]').show();
-    }).catch(error => {
-      console.error('Error fetching image dimensions:', error);
-  });
-
-    console.log('srcs list -----> ', this.srcs);
+      })
+      .catch(error => {
+        console.error('Error opening the image editor:', error);
+      });
   }
 
+  loadImageSize(url) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: null, height: null });
+      img.src = url;
+    });
+  }
 
-
-
+  // width/height: the size to start from (set in the text, or the full-size original); rwidth/rheight: the size of the
+  // resized copy that is in the text now.
   fetchImageDimensions() {
-      const promises = this.srcs.map((image, index) => {
-          if (image.width && image.height) {
-              return Promise.resolve();
-          }
-          return new Promise((resolve, reject) => {
-              const img = new Image();
-              img.src = image.URL;
-              img.onload = () => {
-                  this.srcs[index] = {
-                      ...image,
-                      width: img.naturalWidth,
-                      height: img.naturalHeight
-                  };
-                  console.log('this.srcs after width and height update ---------> ', this.srcs);
-                  resolve();
-              };
-              img.onerror = () => {
-                  console.error(`Failed to load image: ${image.URL}`);
-                  resolve();
-              };
-          });
-      });
-
-      return Promise.all(promises);
+    return Promise.all(this.srcs.map(async (image, index) => {
+      const next = { ...image };
+      if (!next.width || !next.height) {
+        const size = await this.loadImageSize(next.URL);
+        next.width = size.width;
+        next.height = size.height;
+      }
+      if (next.rcvid) {
+        const size = await this.loadImageSize(next.currentURL);
+        next.rwidth = size.width;
+        next.rheight = size.height;
+      }
+      this.srcs[index] = next;
+    }));
   }
 
   handleImageProperties(event) {
@@ -1274,7 +1208,9 @@ this.modifyRichTextVal();
 
   handleModalClose(event) {
     this.process = event.detail? event.detail.process : '';
-    this.imagesJSON = event.detail ? event.detail.imagesJSON : null;
+    if (this.process !== 'Cancel') {
+      this.imagesJSON = event.detail ? event.detail.imagesJSON : null;
+    }
     let lstData = event.detail ? event.detail.cvLst : null;
     if (lstData) {
         let newSet = new Set(this.cvLst);

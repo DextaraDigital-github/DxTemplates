@@ -115,3 +115,37 @@ Org: scratch org, template "ZZ Clip Test", section "Seq A"; clone "ZZ Clone Ctx"
 ## Not yet tested
 
 Merge field value inside a clause or Context text in a real PDF with a record that has data (Clause screen), clause deleted or inactivated later, OR/group visibility rules in the browser, Table Col Resize re-test, U43.
+
+## Resize Image (2026-11-01)
+
+The button was commented out in the markup. It is now enabled (toolbar, icon `utility:expand_alt`) and the feature was tested and repaired. How it works: the editor lists the images of the text; the user sets width and height, confirms an image with the tick, Save closes the dialog; each confirmed new size is drawn on a canvas and saved as a new file titled "Resized Image", and the text points to that copy (so the PDF carries a smaller file). Jest: 5 new tests in `templateContentDetails.test.js` (36), 5 in new `imageResizeCMP/__tests__/imageResizeCMP.test.js`; Apex: new `ScreenshotControllerTest` (6 tests). Org: clone "ZZ Clone Ctx", section "Seq A".
+
+| # | Test | Result |
+|---|---|---|
+| R1 | Open the editor on an image (169x40), set 100x24, tick, Save, Update | Pass. New file "Resized Image" (2.3 KB), the text points to it, the editor shows the smaller image. |
+| R2 | Real PDF of that section | Pass. The logo is painted at 75x18 pt, exactly 100x24 px (also 135x32 pt for 180x42 after R6). |
+| R3 | Resize again in the same page session (to 300x71), Update | Pass. The earlier copy was deleted, the new one (13 KB) kept. |
+| R4 | Reload the page, resize again (before the fixes) | FAIL: the earlier copy stayed as an orphan file and the original was unknown (see R-D1, R-D2). |
+| R5 | After the fixes: 200x47 to 100x24, Update | Pass. New copy's Description holds the id of the file it came from. |
+| R6 | Reload, enlarge to 180x42 from the 100x24 copy, tick, Save, Update | Pass. The previous copy was deleted, the new one (7.3 KB) points to the original (so the enlargement is drawn from the full-size file, not from the small copy). |
+| R7 | Cancel and cross, size set back to the original, two images in one section, several saves | Jest only (see tests); not repeated in the browser. |
+
+| # | Defect | Status |
+|---|---|---|
+| R-D1 | After the section was saved and the page reloaded, the original image was forgotten (the link was kept only in memory; the `Resized_Images_Data__c` field the code wrote to does not exist in the package). A later resize started from the small copy, so enlarging blurred it. | FIXED: a resized copy stores its original's Id in the file's Description (`saveImageBase64(base64Data, originalCvId)`); `getOriginalImageIds` returns the original when the editor opens. Apex tests (3) and Jest. |
+| R-D2 | The copy a resize replaced was only deleted if it was made in the same page session; after a reload it stayed in Files forever. The delete method also removed any listed file, even one another section (for example in a cloned template) still shows. | FIXED: the editor registers the copies it replaces; `deleteContentVersions` only deletes files titled "Resized Image" that are not in the new list and that no Context, Table, Clause, Header or Footer section still contains. Apex tests (3). |
+| R-D3 | The dialog read `rCVID` while the section editor sent `rcvid`, so an image the user did not touch lost its copy and fell back to the original. | FIXED. Jest failed first. |
+| R-D4 | Images were mapped to their new files by position; the editor listed styled images first and the rest after, so with two images the replacement could land on the wrong one. | FIXED: images are listed in the order of the text. Jest failed first. |
+| R-D5 | The dialog's own close event (sent whenever it is taken out of the page) overwrote the image list of the last Save with its own, so the saved image was lost from the section, and the dialog's cancel did the same. | FIXED: a cancelled or closing dialog no longer replaces the saved list; copies made but not used are cleaned up at the next save. Jest failed first. |
+| R-D6 | Size limit of 500 px for every image: an original wider than 500 could not be restored, and a tick on the original size still saved an identical new copy. | FIXED: the limit is the image's own original size (no enlarging beyond it); the original size uses the original file and makes no copy. Empty or non-numeric entries are ignored. A new size ticked twice saves once. Jest failed first. |
+| R-D7 | Thumbnails were stretched to 100 px height; my first fix then pushed the tick and cross icons out of the card (hard-coded `top: -155px`). | FIXED: icons are positioned on the card corner; browser-verified. |
+
+## Observations for the UI discussion (added)
+
+| # | Observation |
+|---|---|
+| U-C15 | Width and height are typed separately; there is no aspect-ratio lock, so a wrong pair distorts the logo. Suggest: change one, the other follows. |
+| U-C16 | Three clicks per image: tick (confirm the image), Save (close), then Update (save the section). Without the tick the image keeps its red border and nothing is saved. |
+| U-C17 | The resized copies are loose files (no owner, not linked to the template); they show in the user's Files list as "Resized Image". |
+| U-C18 | Only the Context editor has it; Header, Footer and Table cells have no resize. |
+| U-C19 | Two files made by my earlier test runs remain in the org (068RL00000OLHxhYAH is the base of the current copy, 068RL00000OLHrFYAX is an orphan); I did not delete org data. |

@@ -12,6 +12,8 @@
 **/
 
 public class ScreenshotController {
+    private static final String RESIZED_TITLE = 'Resized Image';
+
 	 @AuraEnabled(cacheable=true)
     public static String getImageBase64(Id cvId) {
         String base64Data = '';
@@ -53,20 +55,55 @@ public class ScreenshotController {
         }
     }
     
+    // A resized copy remembers the image it was made from (Description), so the editor can offer the full-size
+    // original again after the section was saved and reopened.
     @AuraEnabled
-    public static String saveImageBase64(String base64Data) {
+    public static String saveImageBase64(String base64Data, String originalCvId) {
         String base64String = base64Data.split(',')[1];
         Blob imageBlob = EncodingUtil.base64Decode(base64String);
 
         ContentVersion contentVersion = new ContentVersion();
-        contentVersion.Title = 'Resized Image';
+        contentVersion.Title = RESIZED_TITLE;
         contentVersion.PathOnClient = 'resizedImage.png';
         contentVersion.VersionData = imageBlob;
+        contentVersion.Description = originalCvId;
         contentVersion.IsMajorVersion = true;
-        insert contentVersion;        
+        insert contentVersion;
         return contentVersion.Id;
     }
-    
+
+    // For each given file: the file it was resized from, or the file itself when it is not a resized copy
+    // (or when its original no longer exists).
+    @AuraEnabled
+    public static Map<String, String> getOriginalImageIds(List<String> cvIds) {
+        Map<String, String> originals = new Map<String, String>();
+        for (String cvId : cvIds) {
+            originals.put(cvId, cvId);
+        }
+        Map<String, String> claimed = new Map<String, String>();
+        for (ContentVersion cv : [SELECT Id, Description FROM ContentVersion WHERE Id IN :cvIds AND Title = :RESIZED_TITLE]) {
+            if (String.isNotBlank(cv.Description) && (cv.Description.length() == 15 || cv.Description.length() == 18)) {
+                claimed.put(String.valueOf(cv.Id), cv.Description);
+            }
+        }
+        Set<String> existing = new Set<String>();
+        for (ContentVersion cv : [SELECT Id FROM ContentVersion WHERE Id IN :claimed.values()]) {
+            existing.add(String.valueOf(cv.Id).left(15));
+        }
+        for (String cvId : cvIds) {
+            String original = claimed.get(String.valueOf(cvId)) != null ? claimed.get(String.valueOf(cvId)) : claimed.get(cvId);
+            if (original == null) {
+                for (String claimedId : claimed.keySet()) {
+                    if (claimedId.left(15) == cvId.left(15)) { original = claimed.get(claimedId); }
+                }
+            }
+            if (original != null && existing.contains(original.left(15))) {
+                originals.put(cvId, original);
+            }
+        }
+        return originals;
+    }
+
     @AuraEnabled
     public static void updateContentVersions(List<String> contentVersionIds, Id newLocationId) {
         System.debug('contentVersionIds ---> ' + contentVersionIds);
@@ -129,59 +166,38 @@ public class ScreenshotController {
 	*/
     
     
-	@AuraEnabled
+    // Deletes the resized copies in allCVs that the section no longer uses. Never touches a file that is not a resized
+    // copy, and never a copy that another section (for example in a cloned template) still shows.
+    @AuraEnabled
     public static void deleteContentVersions(List<String> rCVIDs, List<String> allCVs) {
-        System.debug('rCVIDs ---> ' + rCVIDs);
-        System.debug('allCVs ---> ' + allCVs);
-    
-        // Step 1: Retrieve all ContentVersion records based on the provided allCVs list.
-        List<ContentVersion> contentVersionsToDelete = [
-            SELECT Id, ContentDocumentId
-            FROM ContentVersion
-            WHERE Id IN :allCVs
-        ];
-    
-        System.debug('Queried ContentVersions: ' + contentVersionsToDelete);
-        
-        Set<Id> contentDocumentIdsToDelete = new Set<Id>();
-        for (ContentVersion cv : contentVersionsToDelete) {
-            if (!rCVIDs.contains(cv.Id)) {
-                contentDocumentIdsToDelete.add(cv.ContentDocumentId);
+        Set<String> keep = new Set<String>();
+        for (String id : rCVIDs) {
+            if (id != null) { keep.add(id.left(15)); }
+        }
+        Map<String, ContentVersion> candidates = new Map<String, ContentVersion>();
+        for (ContentVersion cv : [SELECT Id, ContentDocumentId FROM ContentVersion WHERE Id IN :allCVs AND Title = :RESIZED_TITLE]) {
+            if (!keep.contains(String.valueOf(cv.Id).left(15))) {
+                candidates.put(String.valueOf(cv.Id).left(15), cv);
             }
         }
-        System.debug('ContentDocumentIds to delete: ' + contentDocumentIdsToDelete);
+        if (candidates.isEmpty()) { return; }
 
-        if (!contentDocumentIdsToDelete.isEmpty()) {
-            List<ContentDocument> contentDocumentsToDelete = [
-                SELECT Id
-                FROM ContentDocument
-                WHERE Id IN :contentDocumentIdsToDelete
-            ];
-
-
-
-            // List<ContentDocumentLink> contentDocumentLinksToDelete = [
-            //     SELECT Id
-            //     FROM ContentDocumentLink
-            //     WHERE ContentDocumentId IN :contentDocumentIdsToDelete
-            // ];
-    
-            // System.debug('ContentDocumentLinks to delete: ' + contentDocumentLinksToDelete);
-            if (!contentDocumentIdsToDelete.isEmpty()) {
-                try {
-                    delete contentDocumentsToDelete;
-                    System.debug('Deleted contentDocumentIdsToDelete successfully.');
-                } catch (DmlException e) {
-                    System.debug('Error deleting contentDocumentIdsToDelete: ' + e.getMessage());
-                    throw new AuraHandledException('Error deleting contentDocumentIdsToDelete: ' + e.getMessage());
-                }
+        for (Document_Template_Section__c section : [SELECT Section_Content__c FROM Document_Template_Section__c WHERE Type__c IN ('Context', 'Table', 'Clause', 'Header', 'Footer')]) {
+            if (String.isBlank(section.Section_Content__c)) { continue; }
+            for (String key : new List<String>(candidates.keySet())) {
+                if (section.Section_Content__c.contains(key)) { candidates.remove(key); }
             }
+            if (candidates.isEmpty()) { return; }
+        }
+
+        Set<Id> documentIds = new Set<Id>();
+        for (ContentVersion cv : candidates.values()) {
+            documentIds.add(cv.ContentDocumentId);
+        }
+        try {
+            delete [SELECT Id FROM ContentDocument WHERE Id IN :documentIds];
+        } catch (DmlException e) {
+            throw new AuraHandledException('Error deleting contentDocumentIdsToDelete: ' + e.getMessage());
         }
     }
-
-
-
-
-
-
 }

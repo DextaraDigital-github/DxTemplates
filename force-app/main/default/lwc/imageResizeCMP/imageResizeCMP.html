@@ -4,8 +4,8 @@
             <!-- Left column: Image list with scrollbar -->
             <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12 slds-text-align_center" style="height: 500px; overflow-y: auto;">
                 <template for:each={imageLst} for:item="image">
-                    <div key={image.id} class="slds-box slds-m-around_small" style={image.style}>
-                        <img src={image.URL} alt="Image" data-id={image.id} onclick={handleImageClick} style="cursor: pointer; max-height:100px; max-width:100px; min-height:100px;"/>
+                    <div key={image.id} class="slds-box slds-m-around_small dx-image-card" style={image.style}>
+                        <img src={image.URL} alt="Image" data-id={image.id} onclick={handleImageClick} style="cursor: pointer; max-height:100px; max-width:100px;"/>
                         <div>
                             <p>Width: {image.width}</p>
                             <p>Height: {image.height}</p>
@@ -27,8 +27,8 @@
                 <!-- </div> -->
                 <div class="slds-m-top_medium slds-grid slds-gutters">
                      <!-- <lightning-button variant="Destructive" label="Reset" title="Cancel" onclick={handleResetClick} class="slds-m-left_x-small slds-m-top_large"></lightning-button> -->
-                    <lightning-input class="slds-col" label="Width" value={width} type="number" onchange={handleImagePropertiesChange} min="1" max="500"></lightning-input>
-                    <lightning-input class="slds-col" label="Height" value={height} type="number" onchange={handleImagePropertiesChange} min="1" max="500"></lightning-input>
+                    <lightning-input class="slds-col" label="Width" value={width} type="number" onchange={handleImagePropertiesChange} min="1"></lightning-input>
+                    <lightning-input class="slds-col" label="Height" value={height} type="number" onchange={handleImagePropertiesChange} min="1"></lightning-input>
                 </div>
                 <!-- grid to have base buttons -->
                 <div class="slds-grid slds-m-top_medium slds-m-right_xxx-small slds-gutters_small">
