@@ -297,6 +297,20 @@ describe('c-template-content-details', () => {
         expect(savedContent()).toBe('<p>Hi</p>');
     });
 
+    // C-D12 (browser): the real editor removes the outer div from the text it reports, so editing a section with
+    // custom CSS (without opening the CSS dialog) saved it without the CSS.
+    it('keeps the custom CSS when the editor reports its text without the wrapper div', async () => {
+        const element = await openSavedSection('<div style="color: red;"><p>Hi</p></div>');
+        const editor = element.shadowRoot.querySelector('lightning-input-rich-text');
+        editor.dispatchEvent(new CustomEvent('change', { detail: { value: '<p>Hi there</p>' } }));
+        await flush();
+
+        button(element, 'Save').click();
+        await flush();
+
+        expect(savedContent()).toBe('<div style="color: red;"><p>Hi there</p></div>');
+    });
+
     // Before, New Page won and the custom CSS was dropped silently.
     it('keeps both the custom CSS and the page break when New Page is ticked, and reopens without nesting', async () => {
         const stored = '<div style="page-break-before : always;"><div style="color: red;"><p>Hi</p></div></div>';

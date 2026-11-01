@@ -84,3 +84,34 @@ Org: scratch org, template "ZZ Clip Test", section "Seq A" (rule and CSS were re
 ## Not yet tested
 
 Image insert and resize in a Context section, Delete / New / Clone, merge-field value in CSS, OR/group rules in the browser.
+
+## Image insert, New, Delete, Clone (2026-11-01)
+
+Org: scratch org, template "ZZ Clip Test", section "Seq A"; clone "ZZ Clone Ctx" (left for you to delete). Jest: 1 more test (31 in `templateContentDetails.test.js`).
+
+| # | Test | Result |
+|---|---|---|
+| C12 | Add Image (toolbar), pick the only image (DxtaraDatamaticsLogo), Update | Pass. Saved `<img src="/sfc/servlet.shepherd/version/download/068...">` inside the page-break and CSS wrappers. The Resize Image button is commented out in the markup (see U-C10), so resizing was not testable. |
+| C13 | Reopen, type text after the image, Update (CSS dialog never opened) | FAIL before fix C-D12: the `color: blue` wrapper was lost. After the fix the content keeps both wrappers and the new text. |
+| C14 | Real flow: activate template, Generate PDF screen, Preview PDF; the attachment it saved was read with pdfjs | Pass. Page 2 starts with the Context text in Courier-Bold, blue fill (0,0,255) is used, 2 images painted on that page (the Context image and one more in the template), page break works, footer "Page 2 of 5". Template deactivated again. |
+| C15 | New Context section: toolbar "Section : Context", name "Seq New", text, Save | Pass. New row with Sequence 6 before the footer (Footer is 9: gaps from earlier deletes); toast "Section Seq New was Saved". |
+| C16 | Delete that section (Delete button) | Pass. Row removed (SOQL count 0), designer returns to the Header editor. No confirmation dialog. |
+| C17 | Clone > New Template "ZZ Clone Ctx" | Pass. Same 8 sections; Context content (page break, blue CSS, image) and the Clause section with its clause link are identical to the original. The dialog needs two clicks on the toggle position because the layout moves when "New Template" is chosen (automation note). |
+
+| # | Defect | Status |
+|---|---|---|
+| C-D12 | The real rich text editor removes the outer `<div style>` from the text it reports, so editing a section that has custom CSS (without opening the CSS dialog) saved it without the CSS. The Jest stub keeps the div, which hid this until the browser. | FIXED: the CSS wrapper (and the page-break wrapper) is taken off when the section loads and kept in `sectioncssval`; Jest test (editor reports the text without the div) failed first, browser-verified: CSS kept after editing the text. |
+
+## Observations for the UI discussion (added)
+
+| # | Observation |
+|---|---|
+| U-C10 | "Resize Image" is commented out in `templateContentDetails.html`; about 400 lines (resize, crop, image properties, `handleResizeUpdate`, `modifyImageAttributes`, resized-image storage `Resized_Images_Data__c`, `deleteContentVersions`) are dead or half-live code. Decide: finish the feature or remove it. |
+| U-C11 | The saved image tag is not closed (`<img src="...">`); the PDF still renders it (checked), so no action, but the page should be well-formed if the PDF engine ever gets stricter. |
+| U-C12 | The image picker lists all Files images (one here); there is no upload from the dialog. |
+| U-C13 | Delete has no confirmation. The section name is not shown in the toast after delete (no toast at all). |
+| U-C14 | Apex test method note: calling `Page.renderAsPdfLWC.getContentAsPDF()` from anonymous Apex now fails with "DML currently not allowed" for browser-made documents; use the attachment that Preview PDF saves (read it with Apex base64 dump) as the real-flow PDF. |
+
+## Not yet tested
+
+Merge field value inside a clause or Context text in a real PDF with a record that has data (Clause screen), clause deleted or inactivated later, OR/group visibility rules in the browser, Table Col Resize re-test, U43.

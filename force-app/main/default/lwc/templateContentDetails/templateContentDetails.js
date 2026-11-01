@@ -773,6 +773,12 @@ export default class TemplateContentDetails extends NavigationMixin(LightningEle
 
           if (result.DxCPQ__Section_Content__c != null) {
             this.richtextVal = result.DxCPQ__Section_Content__c;
+            // The editor drops an outer div from the text it reports, so keep the custom CSS apart from the text.
+            const wrapped = this.readCssWrapper(this.removePageBreakWrappers(this.richtextVal));
+            if (wrapped) {
+              this.sectioncssval = wrapped.css;
+              this.richtextVal = wrapped.inner;
+            }
             this.translateEnabled = false;
           } else if (result.DxCPQ__Section_Content__c == undefined) {
             this.richtextVal = '';
