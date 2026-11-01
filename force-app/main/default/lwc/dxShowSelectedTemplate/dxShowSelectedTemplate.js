@@ -284,6 +284,7 @@ export default class DxShowSelectedTemplate extends LightningElement {
         }).catch((err) => {
             this.isLoaded2=false;
             console.log('this is error handlePDF',err);
+            this.reportGenerationFailure(err);
         });
         
     }
@@ -308,7 +309,16 @@ export default class DxShowSelectedTemplate extends LightningElement {
             }
         }).catch((err) => {
             console.log('this is error handleAttachment',err);
+            this.isLoaded2=false;
+            this.reportGenerationFailure(err);
         });
+    }
+
+    // Tell the user and the page that no PDF was made (before this the spinner stayed on and nothing was said).
+    reportGenerationFailure(err) {
+        const detail = err && err.body && err.body.message ? err.body.message : 'The document may be too large. Try fewer records or a shorter template.';
+        this.dispatchEvent(new ShowToastEvent({ title: 'PDF was not generated', message: detail, variant: 'error' }));
+        this.dispatchEvent(new CustomEvent('pdfgenerationfailed', { bubbles: true, composed: true }));
     }
 
     displayChildContent(event){

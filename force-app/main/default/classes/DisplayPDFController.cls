@@ -67,23 +67,30 @@ global with sharing class DisplayPDFController
         if (html == null) {
             return null;
         }
-        List<Integer> result = new List<Integer>();
+        // The text is copied in pieces, cut where a break goes: a list with one number per character used up the heap of a long
+        // document (25 MB for 1.8 MB of text).
+        List<String> pieces = new List<String>();
+        Integer pieceStart = 0;
         Boolean inTag = false;
         Integer previous = 0;
-        for (Integer i = 0; i < html.length(); i++) {
+        Integer length = html.length();
+        for (Integer i = 0; i < length; i++) {
             Integer code = html.charAt(i);
             if (code == 60) {
                 inTag = true;
             } else if (code == 62) {
                 inTag = false;
             }
-            if (!inTag && isCjk(code) && isCjk(previous)) {
-                result.addAll(CJK_BREAK.getChars());
+            if (code >= 12288 && !inTag && isCjk(code) && isCjk(previous)) {
+                pieces.add(html.substring(pieceStart, i));
+                pieces.add(CJK_BREAK);
+                pieceStart = i;
             }
-            result.add(code);
             previous = inTag ? 0 : code;
         }
-        return String.fromCharArray(result);
+        if (pieces.isEmpty()) { return html; }
+        pieces.add(html.substring(pieceStart));
+        return String.join(pieces, '');
     }
 
     private static final String CJK_BREAK = '<span class="cs"> </span>';

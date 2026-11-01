@@ -128,6 +128,11 @@ export default class DxtemplateSelectorCmp extends LightningElement {
         this.pdfdocumentid=event.detail.attachmentid;
     }   
 
+    // The PDF could not be made (a very large document, a server error): the spinner must not stay on for ever.
+    handlepdfgenerationfailed() {
+        this.isLoaded=false;
+    }
+
     previewPDF() {
         this.pageSize = 'A4';
         this.pageOrientation = 'Portrait';

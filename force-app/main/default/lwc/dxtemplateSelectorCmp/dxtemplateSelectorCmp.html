@@ -27,7 +27,7 @@
 		</div>
 		<div hidden class="slds-col">
 			<div lwc:if={showTemplate} hidden class="page subpage">
-				<c-dx-show-selected-template template-id={selectedTemplateId} object-record-id={recordId} object-name={objectApiName} onpdfgeneration={handlepdfgeneration}> </c-dx-show-selected-template>
+				<c-dx-show-selected-template template-id={selectedTemplateId} object-record-id={recordId} object-name={objectApiName} onpdfgeneration={handlepdfgeneration} onpdfgenerationfailed={handlepdfgenerationfailed}> </c-dx-show-selected-template>
 			</div>
 		</div>
 	</div>
