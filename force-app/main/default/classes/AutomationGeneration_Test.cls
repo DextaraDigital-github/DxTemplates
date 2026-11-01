@@ -57,6 +57,25 @@ private class AutomationGeneration_Test {
         System.assertEquals('<p>Hello from the class (record ' + account.Id + ') Acme</p>', contentOf(sections, 'Letter'));
     }
 
+    // The screen keeps a copy of the class values on the Document__c; when they are bigger than that field the insert failed, no
+    // document was made and the PDF could not be generated at all.
+    @IsTest
+    static void valuesLargerThanTheFieldThatKeepsThemDoNotStopTheDocumentFromBeingCreated() {
+        Account account = new Account(Name = 'Acme');
+        insert account;
+        Document_Template__c template = makeTemplate('Big class values');
+        template.ClassId__c = [SELECT Id FROM ApexClass WHERE Name = 'PlaceholderBigHandler' LIMIT 1].Id;
+        update template;
+        makeSection(template, 'Lines', 'Table', 0, '<table><thead><tr><th>P</th></tr></thead><tbody><tr><td>%%Lines.Product%%</td></tr></tbody></table>');
+
+        Map<String, Object> data = DisplayPDFController.getTemplateSections(template.Id, account.Id, 'Account');
+
+        System.assertNotEquals(null, data, 'sections are returned');
+        System.assertNotEquals(null, data.get('documentId'), 'the document is created');
+        List<Document_Template_Section__c> sections = (List<Document_Template_Section__c>) data.get('selectedTemplateContents');
+        System.assertEquals(3001, contentOf(sections, 'Lines').countMatches('<tr'), 'all 3000 rows and the header row are printed');
+    }
+
     @IsTest
     static void translationsApplyToGenerationWithoutTheBrowser() {
         Account account = new Account(Name = 'Acme');

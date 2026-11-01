@@ -178,6 +178,23 @@ private class PlaceholderMerge_Test {
         System.assert(content.contains('Item &lt;special&gt; &amp; more'), 'angle brackets around an unknown word are text, not a tag: ' + content);
     }
 
+    // A long list from a class or Flow: finding the rows and tokens with regular expressions failed with "Regex too complicated"
+    // from about 5,000 rows.
+    @IsTest
+    static void aTableOfEightThousandRowsIsFilledWithoutRegexLimits() {
+        Document_Template__c template = makeTemplate('Many rows');
+        Document_Template_Section__c lines = makeSection(template, 'Lines', 'Table', 0, table('<tr><td>%%Items.Product%%</td><td>%%Items.Qty%%</td></tr>'));
+        List<Object> items = new List<Object>();
+        for (Integer i = 1; i <= 8000; i++) { items.add(new Map<String, Object>{ 'Product' => 'Item ' + i, 'Qty' => String.valueOf(i) }); }
+
+        Map<String, String> merged = runMerge(new List<Document_Template_Section__c>{ lines }, new Map<String, Object>{ 'Items' => items });
+
+        String content = merged.get('Lines');
+        System.assertEquals(8001, content.countMatches('<tr'), '1 header row and 8000 data rows');
+        System.assert(content.contains('<td>Item 8000</td><td>8000</td>'));
+        System.assert(!content.contains('%%'));
+    }
+
     @IsTest
     static void aTokenWithoutAValueIsNotPrintedAsPlaceholderText() {
         Document_Template__c template = makeTemplate('Missing');

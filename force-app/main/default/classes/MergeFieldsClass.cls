@@ -86,14 +86,11 @@ public with sharing class MergeFieldsClass {
             }
             if (mainstr == null) { mainstr = ''; }
             
-            Pattern p = Pattern.compile('\\{!.+?\\}');
-            Matcher m = p.matcher(mainstr);
-            String mainfields;
+                        String mainfields;
             Set<String> mainfieldsList = new Set<String>();
-            
-            while(m.find()) {
+            for (String mergeField : mergeFieldsIn(mainstr)) {
                 String strReplace = '{!'+mainObject+'.';
-                String str = m.group(0).replace(strReplace,'').replace('}',', ');
+                String str = mergeField.replace(strReplace,'').replace('}',', ');
                 String str1 = str.replace(',','');
                 mainfieldsList.add(str1);           
             }
@@ -300,13 +297,11 @@ public with sharing class MergeFieldsClass {
 				}
 				String mainObject=objectName;
 				
-				Pattern p = Pattern.compile('\\{!.+?\\}');
-				Matcher m = p.matcher(mainstr);
-				String mainfields;
+								String mainfields;
 				Set<String> mainfieldsList = new Set<String>();
-            while(m.find()) {
+				for (String mergeField : mergeFieldsIn(mainstr)) {
 					String strReplace = '{!'+mainObject+'.';
-					String str = m.group(0).replace(strReplace,'').replace('}',', ');
+					String str = mergeField.replace(strReplace,'').replace('}',', ');
 					String str1 = str.replace(',','');
 					mainfieldsList.add(str1);
 				}
@@ -403,13 +398,11 @@ public with sharing class MergeFieldsClass {
                 }
             }
             String mainObject=objectName;
-            Pattern p = Pattern.compile('\\{!.+?\\}');
-            Matcher m = p.matcher(mainstr);
-            String mainfields;
+                        String mainfields;
             Set<String> mainfieldsList = new Set<String>();
-            while(m.find()) {
+            for (String mergeField : mergeFieldsIn(mainstr)) {
                 String strReplace = '{!'+mainObject+'.';
-                String str = m.group(0).replace(strReplace,'').replace('}',', ');
+                String str = mergeField.replace(strReplace,'').replace('}',', ');
                 String str1 = str.replace(',','');
                 mainfieldsList.add(str1);
             }
@@ -499,9 +492,12 @@ public with sharing class MergeFieldsClass {
         if (String.isBlank(mainstr) || !mainstr.contains('%%')) { return mainstr; }
         String result = mainstr;
 
-        Matcher bodyMatcher = Pattern.compile('(<tbody[^>]*>)([\\s\\S]*?)(</tbody>)').matcher(mainstr);
-        if (bodyMatcher.find()) {
-            String body = bodyMatcher.group(2);
+        // The table body is found by position: a regular expression over a long table fails with "Regex too complicated".
+        Integer bodyOpen = mainstr.indexOf('<tbody');
+        Integer bodyStart = bodyOpen < 0 ? -1 : mainstr.indexOf('>', bodyOpen) + 1;
+        Integer bodyEnd = bodyStart > 0 ? mainstr.indexOf('</tbody>', bodyStart) : -1;
+        if (bodyStart > 0 && bodyEnd >= 0) {
+            String body = mainstr.substring(bodyStart, bodyEnd);
             List<String> tokens = tokensIn(body);
             List<String> listTokens = new List<String>();
             for (String token : tokens) { if (token.contains('.')) { listTokens.add(token); } }
@@ -542,16 +538,52 @@ public with sharing class MergeFieldsClass {
                     rows.add('<tr' + trAttributes + '>' + String.join(rowCells, '') + '</tr>');
                     serialNumber++;
                 }
-                result = mainstr.substring(0, bodyMatcher.start(2)) + String.join(rows, '') + mainstr.substring(bodyMatcher.end(2));
+                result = mainstr.substring(0, bodyStart) + String.join(rows, '') + mainstr.substring(bodyEnd);
             }
         }
         return replaceScalars(mp, result).trim();
     }
 
+    // Every {!Object.Field} merge field of a text (the text of the match, braces included). Found by position, not by a regular
+    // expression: a regular expression over a long text fails with "Regex too complicated".
+    private static List<String> mergeFieldsIn(String text) {
+        List<String> fields = new List<String>();
+        Integer start = text.indexOf('{!');
+        while (start >= 0) {
+            Integer finish = text.indexOf('}', start + 2);
+            if (finish < 0) { break; }
+            String inside = text.substring(start + 2, finish);
+            if (!inside.contains('\n') && !inside.contains('\r') && inside.length() > 0) {
+                fields.add(text.substring(start, finish + 1));
+                start = text.indexOf('{!', finish + 1);
+            } else {
+                start = text.indexOf('{!', start + 2);
+            }
+        }
+        return fields;
+    }
+
+    // The next %%token%% at or after fromIndex on one line: {start of the opening %%, end after the closing %%}, or null.
+    // Found by position and not by a regular expression, which fails with "Regex too complicated" on a long text.
+    private static List<Integer> nextToken(String text, Integer fromIndex) {
+        Integer start = text.indexOf('%%', fromIndex);
+        while (start >= 0) {
+            Integer finish = text.indexOf('%%', start + 2);
+            if (finish < 0) { return null; }
+            String name = text.substring(start + 2, finish);
+            if (!name.contains('\n') && !name.contains('\r')) { return new List<Integer>{ start, finish + 2 }; }
+            start = text.indexOf('%%', start + 1);
+        }
+        return null;
+    }
+
     private static List<String> tokensIn(String text) {
         List<String> tokens = new List<String>();
-        Matcher tokenMatcher = Pattern.compile('%%(.*?)%%').matcher(text);
-        while (tokenMatcher.find()) { tokens.add(tokenMatcher.group(1)); }
+        List<Integer> found = nextToken(text, 0);
+        while (found != null) {
+            tokens.add(text.substring(found[0] + 2, found[1] - 2));
+            found = nextToken(text, found[1]);
+        }
         return tokens;
     }
 
@@ -563,14 +595,17 @@ public with sharing class MergeFieldsClass {
 
     // Every %%token%% that is still in the text becomes its value, or nothing.
     private static String replaceScalars(Map<String, Object> mp, String text) {
-        Matcher tokenMatcher = Pattern.compile('%%(.*?)%%').matcher(text);
-        String result = '';
+        List<String> parts = new List<String>();
         Integer startAt = 0;
-        while (tokenMatcher.find()) {
-            result += text.substring(startAt, tokenMatcher.start()) + safeText(valueOf(mp, tokenMatcher.group(1)));
-            startAt = tokenMatcher.end();
+        List<Integer> found = nextToken(text, 0);
+        while (found != null) {
+            parts.add(text.substring(startAt, found[0]));
+            parts.add(safeText(valueOf(mp, text.substring(found[0] + 2, found[1] - 2))));
+            startAt = found[1];
+            found = nextToken(text, startAt);
         }
-        return result + text.substring(startAt);
+        parts.add(text.substring(startAt));
+        return String.join(parts, '');
     }
 
     // Text from a Flow or Apex class goes into XHTML: & and < must not break the PDF page. A value that holds real HTML tags (a known list, not any <word>) is kept.

@@ -773,7 +773,9 @@ global with sharing class DisplayPDFController
             Document__c doc= new Document__c();
             doc.Document_Template__c=templateId;
             if(!string.isEmpty(templateData[0].FlowId__c) || !string.isEmpty(templateData[0].ClassId__c)){
-                doc.Token_Data__c=JSON.serialize(replaceData);
+                // Only a copy for reference: when the values do not fit in the field the document must still be created.
+                String tokenCopy = JSON.serialize(replaceData);
+                doc.Token_Data__c = tokenCopy.length() <= 131072 ? tokenCopy : JSON.serialize(new Map<String,Object>{ 'truncated' => true, 'size' => tokenCopy.length(), 'keys' => replaceData.keySet() });
             }
 
             Savepoint sp = Database.setSavepoint();
