@@ -343,7 +343,7 @@ public with sharing class ROsectionAutomationController {
     }
     
     // The object a standard relationship name points to (Opportunity "Account" -> Account). Owner, CreatedBy and the like point to User.
-    private static String referencedObjectOfRelationship(Map<String, Schema.SObjectField> fieldMap, String relationshipName) {
+    public static String referencedObjectOfRelationship(Map<String, Schema.SObjectField> fieldMap, String relationshipName) {
         for (Schema.SObjectField field : fieldMap.values()) {
             Schema.DescribeFieldResult described = field.getDescribe();
             if (described.getRelationshipName() == relationshipName && !described.getReferenceTo().isEmpty()) {
@@ -368,13 +368,16 @@ public with sharing class ROsectionAutomationController {
     
     public static void dataFetchFromCurrentRecord(List<Object> selectedFieldAsHeaderAPIList, Sobject currRecord, Map<String,String> fieldNameType)  {
         TransactionLog__c[] logList = new TransactionLog__c[] {};
+        // The cells of the row are joined once at the end: appending every cell to the growing table text made long tables very slow.
+        List<String> rowCells = new List<String>();
         try{
+            // The record as a map, once for the row (it was rebuilt for every cell, which is most of the time of a long table).
+            Map<String, Object> currRecordLkpData = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(currRecord));
             for(Object field : selectedFieldAsHeaderAPIList) {
                 Object recVal;   
                 String fieldStr = (String) field;
                 String fieldTypeAsText = fieldNameType.containsKey(fieldStr) ? ((String) fieldNameType.get(fieldStr)).toUpperCase() : 'STRING'; // a field whose type could not be found prints as text
 
-                Map<String, Object> currRecordLkpData = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(currRecord));
                 
                 if(fieldStr.contains('__r')) {
                     List<String> lkpFieldSplit = fieldStr.split('\\.');
@@ -453,12 +456,12 @@ public with sharing class ROsectionAutomationController {
                     
                     /* Check for Image and styling the TD accordingly */
                     if(returnedFormattedValue.contains('servlet.shepherd/version/download/')){
-                        ROHtmlContent = ROHtmlContent + '<td scope="col" width="100px" style="border: 1px solid black; text-align: center;"> <img style="max-height:100% ; max-width:100%; height:40px; width:40px;" src= '+ returnedFormattedValue +'> </td>';
+                        rowCells.add('<td scope="col" width="100px" style="border: 1px solid black; text-align: center;"> <img style="max-height:100% ; max-width:100%; height:40px; width:40px;" src= '+ returnedFormattedValue +'> </td>');
                     } else {
-                        ROHtmlContent = ROHtmlContent + '<td scope="col" width=\"' + cellTDwidth +'\" style="border: 1px solid black; text-align: center;">' + returnedFormattedValue + '</td>';
+                        rowCells.add('<td scope="col" width=\"' + cellTDwidth +'\" style="border: 1px solid black; text-align: center;">' + returnedFormattedValue + '</td>');
                     }
                 } else {
-                    ROHtmlContent = ROHtmlContent + '<td scope="col" width=\"' + cellTDwidth +'\" style="border: 1px solid black; text-align: center;"> </td>';
+                    rowCells.add('<td scope="col" width=\"' + cellTDwidth +'\" style="border: 1px solid black; text-align: center;"> </td>');
                 }                 
             }
         }
@@ -476,6 +479,8 @@ public with sharing class ROsectionAutomationController {
                 System.debug('Error Message : ' + ex.getMessage());
                 System.debug('Error Line Number : ' + ex.getLineNumber());
             }
+        } finally {
+            ROHtmlContent += String.join(rowCells, '');
         }
     }
 

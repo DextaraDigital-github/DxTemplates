@@ -111,7 +111,6 @@ public with sharing class DisplayRelatedObjects {
                 Map<Object, List<SObject>> recordCategoryMap = new Map<Object, List<SObject>>();
                 String ptrfield = (String) grpby;
                 for(Sobject ptrRecord : ChildRecords){
-                    Map<String, Object> maprec = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(ptrRecord));
                     
                     if(!recordCategoryMap.containsKey(ptrRecord.get(ptrfield)) && ptrRecord.get(ptrfield)!=null){
                         List<SObject> recordList = new  List<SObject>();
@@ -198,13 +197,10 @@ public with sharing class DisplayRelatedObjects {
                 ChildRecords = Database.query(recordsQuery);
                 for(Sobject currRecord: ChildRecords) {
                     //qliRecIds.add(currRecord.get('Id'));
-                    ROHtmlContent += '<tr>';
-                    Map<String, Object> maprec = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(currRecord));                    
                     //Function Call
                     RowWrapper recType = RecordDataWrapperCreation(fieldsObjList, currRecord, fieldNameType);
                     //Function Call
                     rowWrapperList.add(recType);
-                    ROHtmlContent += '</tr>';
                 }
                 //Adding GrandTotals to WrapperList
                 RowWrapper totType = new RowWrapper();
@@ -333,8 +329,9 @@ public with sharing class DisplayRelatedObjects {
                     }
                     else{
                         List<String> tempfield = selfield.split('\\.');
+                        String lookupObject = ROsectionAutomationController.referencedObjectOfRelationship(fieldMap, tempfield[0]);
                         tempfield.remove(0);
-                        Map<String,String> FieldnameTypeLookup = getObjectFieldTypeMap('User',tempfield);
+                        Map<String,String> FieldnameTypeLookup = getObjectFieldTypeMap(lookupObject,tempfield);
                         fieldNameType.put(selfield,FieldnameTypeLookup.get(tempfield[0]));
                     }
                 }
@@ -369,11 +366,12 @@ public with sharing class DisplayRelatedObjects {
         recType.type='Record';
         TransactionLog__c[] logList = new TransactionLog__c[] {};
         	try{
+                // The record as a map, once for the row (it was rebuilt for every cell, which made long tables very slow).
+                Map<String, Object> currRecordLkpData = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(currRecord));
                 for(Object field : fieldsObjList){
                     String fieldStr = (String) field;
                     Object recVal;             
                     recType.addValue(fieldNameType.get(fieldStr));
-                    Map<String, Object> currRecordLkpData = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(currRecord));
                     
                     if(fieldStr.contains('__r')) {
                         List<String> lkpFieldSplit = fieldStr.split('\\.');
@@ -422,7 +420,6 @@ public with sharing class DisplayRelatedObjects {
                             currencyFieldSubTotals.put(fieldStr, tempValueSubTotal);
                         } 
                     }
-                    ROHtmlContent = ROHtmlContent + '<td scope="col" style="border: 1px solid black; text-align: center;">' + recVal + '</td>';
                     recType.addValue(recVal);
                 }
             }
