@@ -364,6 +364,101 @@ describe('c-template-table-details', () => {
         expect(saved.columnOrder).toEqual(['Header 2', 'Header 1', 'Header 3']);
     });
 
+    // D12 (browser, real drag): with the S.No column on, dragging the handle of column 2 resized column 1, because the
+    // handlers counted the S.No cell as a data column. Also the saved widths and the widths applied on reopen.
+    describe('Col Resize with the S.No column', () => {
+        const SECTION_DETAILS = (extra = {}) => JSON.stringify({
+            rownumber: 1, colnumber: 3, serialNumberColumn: true, headersIncluded: true, colWidthChanged: false,
+            headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+            fontsize: '12px', fontfamily: 'Verdana', borderstyle: '', bordercolor: '', newPage: false,
+            sectionInfo: [
+                { 'data-id': 'Header 1', Content: '<p>H1</p>' }, { 'data-id': 'Header 2', Content: '<p>H2</p>' }, { 'data-id': 'Header 3', Content: '<p>H3</p>' },
+                { 'data-id': 'row1col1div', Content: '<p>A1</p>' }
+            ],
+            ...extra
+        });
+
+        async function openTable(details) {
+            gettemplatesectiondata.mockResolvedValue({
+                Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+                DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '', DxCPQ__Section_Details__c: details
+            });
+            const element = mount({ sectionrecordid: 'a02SECTION' });
+            await flush();
+            element.loadsectionsectionvaluesforedit('a02SECTION');
+            await flush();
+            jest.runOnlyPendingTimers();
+            await flush();
+            return element;
+        }
+
+        const tickColResize = async element => {
+            const box = [...element.shadowRoot.querySelectorAll('lightning-input')].find(i => i.title === 'Resize Columns');
+            box.checked = true;
+            box.dispatchEvent(new CustomEvent('click'));
+            await flush();
+            jest.runOnlyPendingTimers();
+            await flush();
+        };
+        const resizeRow = element => [...element.shadowRoot.querySelectorAll('tr.colwidthupdaterow th')];
+        const drag = (element, index, from, to) => {
+            element.shadowRoot.querySelector(`.resize-handle[data-index="${index}"]`)
+                .dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, clientX: from }));
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: to }));
+            document.dispatchEvent(new MouseEvent('mouseup'));
+        };
+
+        // U43: the S.No column was a fixed 5% wide, too narrow for "S.No" at 12 pt in Courier, so the text ran into the
+        // next column in the PDF. Its width now follows the font size (four characters plus padding).
+        it('makes the S.No column wide enough for its text at the table font size', async () => {
+            const element = await openTable(SECTION_DETAILS({ fontsize: '16px' }));
+            const header = element.shadowRoot.querySelector('thead th.serialNumber');
+            const cell = element.shadowRoot.querySelector('tbody td.serialNumber');
+            const width = parseFloat(header.style.width);
+
+            expect(header.style.width).toMatch(/px$/);
+            expect(width).toBeGreaterThanOrEqual(4 * 16 * 0.6); // 4 characters of a monospace font at 16px
+            expect(cell.style.width).toBe(header.style.width);
+        });
+
+        // D13 (browser): the resize cells were draggable, so Chrome began a native drag on mouse down and never sent the
+        // mouse up; the column then kept following the mouse until the next click.
+        it('does not let the browser start a native drag from a resize cell', async () => {
+            const element = await openTable(SECTION_DETAILS());
+            await tickColResize(element);
+
+            resizeRow(element).forEach(cell => expect(cell.getAttribute('draggable')).not.toBe('true'));
+        });
+
+        it('resizes the column whose handle is dragged', async () => {
+            const element = await openTable(SECTION_DETAILS());
+            await tickColResize(element);
+            const cells = resizeRow(element);
+            expect(cells).toHaveLength(4); // S.No + 3 columns
+
+            drag(element, 1, 100, 150);
+
+            expect(cells[2].style.width).toBe('50px'); // S.No is cell 0, so data column 2 is cell 2
+            expect(cells[1].style.width).toBe('');
+            expect(cells[0].style.width).toMatch(/px$/); // the S.No column is left alone
+        });
+
+        it('saves the dragged width on the same data column in the table HTML', async () => {
+            const element = await openTable(SECTION_DETAILS());
+            await tickColResize(element);
+            drag(element, 0, 10, 70);
+
+            button(element, 'Update').click();
+            await flush();
+
+            const html = saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails.DxCPQ__Section_Content__c;
+            const headers = [...new DOMParser().parseFromString(html, 'text/html').querySelectorAll('thead th')];
+            expect(headers[0].style.width).toMatch(/px$/); // S.No
+            expect(headers[1].style.width).toBe('60px');
+            expect(headers[2].style.width).toBe('');
+        });
+    });
+
     // D1: the table re-applies the section-wide header/body colours every time it renders, which painted over
     // the colour a user had given to one single cell.
     it('keeps the colour of a single cell when the table renders again', async () => {

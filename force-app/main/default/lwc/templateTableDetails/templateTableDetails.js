@@ -979,7 +979,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
 
             if (this.isColResizeCheck && this.isHeaderSelectedCheck) {
                 this.tableheaders.forEach((header, index) => {
-                    const th = this.template.querySelector(`th:nth-child(${index + 1})`);
+                    const th = this.dataColumnHeader(index);
                     this.savedColumnWidths[`column${index}`] = th.style.width;
                 });
             }
@@ -1089,7 +1089,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
 
     applySavedWidths() {
         this.tableheaders.forEach((header, index) => {
-            const th = this.template.querySelector(`th:nth-child(${index + 1})`);
+            const th = this.dataColumnHeader(index);
             if (this.savedColumnWidths[`column${index}`]) {
                 th.style.width = this.savedColumnWidths[`column${index}`];
             }
@@ -2258,6 +2258,18 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     * Method to get the correct column index accounting for the serial number column
     */
 
+    // Width of the S.No column: four characters of the table font (a monospace font is the widest) plus padding. A fixed
+    // 5% was too narrow for "S.No" at 12 pt in Courier and the text ran into the next column.
+    get serialNumberStyle() {
+        const size = parseFloat(this.fontsize) || 12;
+        return `width:${Math.ceil(size * 0.62 * 4) + 12}px;`;
+    }
+
+    // The header cell of data column `index` (0 = first column of the table); the S.No column has a header cell of its own in front.
+    dataColumnHeader(index) {
+        return this.template.querySelector(`th:nth-child(${index + 1 + (this.isSerialNumberCheck ? 1 : 0)})`);
+    }
+
     getColumnIndex(element) {
         let index = Array.from(element.parentNode.children).indexOf(element);
         return this.isSerialNumberCheck ? index - 1 : index;
@@ -2270,7 +2282,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     handleMouseDown(event) {
         let resizeHandle = event.target;
         let index = parseInt(resizeHandle.dataset.index, 10);
-        let th = this.template.querySelector(`th:nth-child(${index + 1})`);
+        let th = this.dataColumnHeader(index);
         let startingWidth = th.offsetWidth;
         let startX = event.clientX;
 
@@ -2300,7 +2312,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     handleResizeHandleMouseEnter(event) {
         let resizeHandle = event.target;
         let index = parseInt(resizeHandle.dataset.index, 10);
-        let th = this.template.querySelector(`th:nth-child(${index + 1})`);
+        let th = this.dataColumnHeader(index);
         this.resizingColumn = th;
     }
 

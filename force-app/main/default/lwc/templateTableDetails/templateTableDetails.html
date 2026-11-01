@@ -257,7 +257,7 @@
 
 							<template lwc:if={isColSwapCheck}>
 								<tr class="colswap" height="20px">
-									<th scope="col" class="serialNumber" style="width:5%;" lwc:if={isSerialNumberCheck}>
+									<th scope="col" class="serialNumber" style={serialNumberStyle} lwc:if={isSerialNumberCheck}>
 									</th>
 
 									<template for:each={tableheaders} for:item="headval" for:index="headindex">
@@ -275,10 +275,10 @@
 
 							<template lwc:elseif={isColResizeCheck}>
 								<tr class="colwidthupdaterow" height="20px">
-									<th scope="col" class="serialNumber" style="width:5%;" lwc:if={isSerialNumberCheck}>
+									<th scope="col" class="serialNumber" style={serialNumberStyle} lwc:if={isSerialNumberCheck}>
 									</th>
 									<template for:each={tableheaders} for:item="headval" for:index="headindex">
-										<th scope="col" key={headval.id} draggable="true" onmousedown={handleMouseDown}
+										<th scope="col" key={headval.id} onmousedown={handleMouseDown}
 											data-thstyle={headindex}>
 
 											<div class="slds-grid" style="background-color:wheat;">
@@ -300,7 +300,7 @@
 
 							<tr class="myclass1" style="font-size:14px;">
 
-								<th scope="col" class="serialNumber" style="width:5%;" lwc:if={isSerialNumberCheck}>
+								<th scope="col" class="serialNumber" style={serialNumberStyle} lwc:if={isSerialNumberCheck}>
 									<div class="slds-align_absolute-center">
 										S.No
 									</div>
@@ -390,7 +390,7 @@
 							<template for:each={tablerows} for:item="rowvar">
 								<tr key={rowvar.rownumber} data-rowvalue={rowvar.rowindex}>
 
-									<td scope="col" class="serialNumber" style="width:5%;" lwc:if={isSerialNumberCheck}>
+									<td scope="col" class="serialNumber" style={serialNumberStyle} lwc:if={isSerialNumberCheck}>
 										<div class="slds-align_absolute-center">
 											{rowvar.rowindex}
 										</div>

@@ -307,3 +307,22 @@ Retracted: D6, D8 (display only).
 | D4 | **Understood and FIXED.** The first click on a cell that has not been used since the section was opened only builds the cell editor and leaves it without focus; a second click focuses it. `focusCellOnFirstClick()` now focuses the editor after the first click (retries at 0, 150 and 400 ms because the editor needs a moment to build; once per cell element). Jest: new test failed first (24 tests now). UI (Seq T, 1280x495 window): one click on an untouched cell shows the toolbar and typing "abc" lands in the cell; before the fix the same click and typing did nothing. |
 | D2 (decision) | **Closed as a small-window limitation, no code change.** I tried scrolling a cell near the top to the middle of the window on click (Jest passed) and reverted it: in a 495 px window the page is already at its end, so scrolling cannot make room, and the picker is the platform's own widget (about 300 px tall). On a normal-height screen there is room above the toolbar. Revisit only if a user reports it on a normal screen. |
 | D2 (observation) | **Reproduced, NOT fixed.** Clicking the font-colour dropdown arrow in the cell toolbar opens the colour picker upward from the toolbar; with the toolbar near the top of the visible area, the top of the picker (the colour gradient) is cut off by the page header. Also, opening the picker takes the caret out of the cell. Likely depends on window height (a 1080 px window has room above the toolbar); needs a check on the user's screen with a cell near the top. |
+
+## 1.17 Col Resize with a real drag, and U43 (2026-11-01)
+
+Org: clone "ZZ Clone Ctx", table "Full T" (S.No on, Courier 16). Jest: 4 new tests (28 in `templateTableDetails.test.js`).
+
+| # | Test | Result |
+|---|---|---|
+| T65 | Col Resize, real mouse drag (`left_click_drag`) of the handle of column 2 by 80 px (before the fixes) | FAIL twice: the wrong column grew (column 1, D12) and the column kept following the mouse after the button was released, until the next click (D13). This was the real reason T56 was "inconclusive". |
+| T66 | Same drag after the fixes, then a click elsewhere | Pass. Column 2 grows from 196 to 272 px (+80), the other columns give way (the table has a fixed total width), and nothing moves on the later click. |
+| T67 | Save, read the stored HTML | Pass. `width: 276px` is on the header of the dragged column ("Header 1", second on screen); the S.No header is `width: 52px`. |
+| T68 | Real PDF of the saved table | Pass. Column starts: S.No x31, H2 x75, H1 x216, H3 x429, so the dragged column is the widest (about 213 pt) and "S.No" fits in front of H2 (U43). |
+
+| # | Defect | Status |
+|---|---|---|
+| D12 | With S.No on, the drag handler, the save loop and the width restore counted the S.No cell as a data column, so the width landed on the previous column (and S.No got the width of column 1 on save). | FIXED: one helper `dataColumnHeader(index)` accounts for the S.No column. Jest failed first (2 tests). |
+| D13 | The header cells of the resize row were `draggable="true"`; the browser began a native drag on mouse down and never sent the mouse up, so the column kept following the mouse until the next click. The Jest drag test cannot see this (it sends its own mouse up); the markup test fails when the attribute is present. | FIXED: attribute removed from the resize row (the swap row keeps its own). Jest markup test; browser-verified with a real drag. |
+| U43 | The S.No column was a fixed 5% wide, too narrow for "S.No" in Courier, so the text ran into the next column. | FIXED: width follows the table font size (four characters of the font plus padding), for header and body cells. Jest failed first; PDF-verified. |
+
+Not changed (observation): widths are kept only for the columns that were dragged, and the editor does not show a reopened table with its saved widths (the saved HTML has them and the PDF uses them).
