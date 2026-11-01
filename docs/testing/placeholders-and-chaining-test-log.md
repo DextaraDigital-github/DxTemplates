@@ -22,3 +22,9 @@ Dev scratch org `dxtemplates-scratch-30d`. Seeds: `docs/tools/org-seed/seed_plac
 - Deactivate: label flips back to Activate, IsActive=false; OK.
 - Delete: confirm dialog, toast "Template Deleted Successfully", list refreshes and selects the first template; template gone. OK.
 - UI observations (for the UI discussion): after Deactivate the section editors stay greyed out (Previously_Active locks editing by design, but nothing on screen says why); Edit Properties stays clickable while active; section Save/Delete buttons look enabled while the fields are locked.
+
+## Page size / orientation and footer in real PDFs (2026-11-01, "ZZ Placeholders")
+- Sizes read from the real PDF: A4 portrait 595x842, A5 landscape 595x420 (content flows to 2 pages, header and footer on both), Letter 612x792, Legal landscape 1008x612. OK. Helper: `PSIZE=Letter PORI=Landscape bash run_tpl.sh "<template>" <tag>`; `items.mjs` prints text positions at the page top and bottom.
+- FOUND F-1: with footer cells that have NO side padding (the Apex fallback `DefaultPageProperties`, and any template whose Footer Properties padding was set to 0 - seen in an older PDF too) the PDF engine lays the footer out wrongly: left cell squeezed ("Footer" / "left" on two lines), middle cell at x=0, right cell at the page edge so only its first letter shows. With 5px or more side padding it is correct (cells at 4/203/400 pt; 75/274/471 with 100/70 like the header). The designer's own default is 10px, so templates made in the designer are fine.
+- Fix: fallback `DefaultPageProperties` footer cells now have 10px side padding (test `theDefaultFooterCellsHaveSidePadding`); real PDF verified (cells + "Page 1 of 1" all inside the page).
+- Still open (for the UI discussion): a user who sets footer left/right padding to 0 in Footer Properties gets the broken layout; either enforce a minimum or fix the margin-box CSS in renderAsPdfLWC.page.
