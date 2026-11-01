@@ -148,11 +148,15 @@ public with sharing class SaveDocumentTemplate {
         try{
             
             List<Document_Template__c> docTempList = new List<Document_Template__c>();
-            Map<Id,Document_Template__c> docTempMap = new Map<Id,Document_Template__c>([SELECT Id, Name, IsActive__c, Previously_Active__c, Version_Number__c, Parent_Template__c FROM Document_Template__c WHERE Id=:templateId OR Parent_Template__c=:parentId WITH SECURITY_ENFORCED limit 50000]);
+            // The versions of one template share a parent. A template without a parent is a family of its own: asking for
+            // "Parent_Template__c = null" would find every other template without a parent and switch them off.
+            Document_Template__c selected = [SELECT Id, Parent_Template__c FROM Document_Template__c WHERE Id = :templateId WITH SECURITY_ENFORCED];
+            Id familyId = selected.Parent_Template__c != null ? selected.Parent_Template__c : selected.Id;
+            Map<Id,Document_Template__c> docTempMap = new Map<Id,Document_Template__c>([SELECT Id, Name, IsActive__c, Previously_Active__c, Version_Number__c, Parent_Template__c FROM Document_Template__c WHERE Id=:templateId OR Parent_Template__c=:familyId OR Id=:familyId WITH SECURITY_ENFORCED limit 50000]);
             Document_Template__c docTemp = docTempMap.get(templateId);
             
                 if(isActive){
-                docTemp.Previously_Active__c = (!docTemp.Previously_Active__c) ? true: false ;
+                docTemp.Previously_Active__c = true;   // once active, the template stays locked for editing (activating again used to unlock it)
                 
                 for(Document_Template__c dct : docTempMap.values()) {
                     if(dct.Id != templateId) {
@@ -183,16 +187,20 @@ public with sharing class SaveDocumentTemplate {
     public static void deleteTemplate(Id templateId){
         try{
 
-            Map<ID,Document_Template__c> docTempMap = new Map<ID,Document_Template__c>([SELECT ID, Name,Version_Number__c,Parent_Template__c FROM Document_Template__c WHERE Parent_Template__c= :templateId OR ID=:templateId WITH SECURITY_ENFORCED ORDER BY Version_Number__c limit 50000]);
-            Document_Template__c delDocTemp = docTempMap.get(templateId);
-            list<Document_Template_section__c> rltdRO = [SELECT Id, Type__c, RuleId__c, Document_Template__c FROM Document_Template_Section__c where document_template__c=:templateId and Type__c='Related Objects' WITH SECURITY_ENFORCED limit 50000];
-            list<Id> arrRuleIdtoDelete = new list<Id> {};        
-                
-            for(integer i=0; i<rltdRO.size(); i++){
-                arrRuleIdtoDelete.add(rltdRO[i].RuleId__c);            
+            List<Document_Template__c> family = [SELECT ID, Name,Version_Number__c,Parent_Template__c FROM Document_Template__c WHERE Parent_Template__c= :templateId OR ID=:templateId WITH SECURITY_ENFORCED ORDER BY Version_Number__c limit 50000];
+            Document_Template__c delDocTemp;
+            List<Document_Template__c> remaining = new List<Document_Template__c>();
+            for (Document_Template__c member : family) {
+                if (member.Id == templateId) { delDocTemp = member; } else { remaining.add(member); }
             }
-            list<Rule__c> arrRuletoDelete = [Select Id from Rule__c where Id in: arrRuleIdtoDelete WITH SECURITY_ENFORCED limit 50000];
-                
+
+            // the rules of the template's sections (Related Objects filter and visibility) go with it, their conditions follow
+            Set<Id> ruleIds = new Set<Id>();
+            for (Document_Template_Section__c section : [SELECT RuleId__c, Section_Visibility_Rule__c FROM Document_Template_Section__c WHERE Document_Template__c = :templateId WITH SECURITY_ENFORCED limit 50000]) {
+                if (section.RuleId__c != null) { ruleIds.add(section.RuleId__c); }
+                if (section.Section_Visibility_Rule__c != null) { ruleIds.add(section.Section_Visibility_Rule__c); }
+            }
+            list<Rule__c> arrRuletoDelete = [Select Id from Rule__c where Id in: ruleIds WITH SECURITY_ENFORCED limit 50000];
             if(arrRuletoDelete.size() > 0)
             {
                 if (sp1 == null) sp1 = Database.setSavepoint();
@@ -203,7 +211,14 @@ public with sharing class SaveDocumentTemplate {
                     throw new SafeClassException(String.join( errorList, ', ' ));
                 }
             }
-                
+
+            // its translations and its watermark files (translations only point at the template, they are not deleted with it)
+            List<Translator__c> translations = [SELECT Id FROM Translator__c WHERE DocumentTemplate__c = :templateId WITH SECURITY_ENFORCED limit 50000];
+            if (!translations.isEmpty()) { delete translations; }
+            Set<Id> documentIds = new Set<Id>();
+            for (ContentVersion version : [SELECT ContentDocumentId FROM ContentVersion WHERE FirstPublishLocationId = :templateId WITH SECURITY_ENFORCED limit 50000]) { documentIds.add(version.ContentDocumentId); }
+            if (!documentIds.isEmpty()) { delete [SELECT Id FROM ContentDocument WHERE Id IN :documentIds]; }
+
             List<Document_Template__c> deletedts = new List<Document_Template__c>();
             deletedts.add(delDocTemp);
             if(deletedts.size()>0){
@@ -215,14 +230,14 @@ public with sharing class SaveDocumentTemplate {
                     throw new SafeClassException(String.join( errorList, ', ' ));
                 }
             }
-            
-            docTempMap.remove(templateId);
-            for(Document_Template__c docTemp : docTempMap.values()){
-                docTemp.Parent_Template__c=docTempMap.values()[0].ID;
+
+            // deleting the first template of a family: the lowest remaining version becomes its root
+            for(Document_Template__c docTemp : remaining){
+                docTemp.Parent_Template__c = remaining[0].Id;
             }
 
             if (sp1 == null) sp1 = Database.setSavepoint();
-            Database.UpsertResult[] urList2 = safe.doupsert(docTempMap.values());
+            Database.UpsertResult[] urList2 = safe.doupsert(remaining);
                 List<String> errorList2 = Safely.safeClassExceptionHandlerUpsert(urList2);
                 if(errorList2.size()>0){
                 Database.rollback(sp1);

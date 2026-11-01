@@ -70,43 +70,21 @@ public with sharing class MergeFieldsClass {
                 }
                 sec.Section_Content__c = sectionContent;
             }
-            for(Document_Template_Section__c sec: selectedTemplateContents) {
-                if(mainstr==null){
-                    mainstr=sec.Section_Content__c;
-                }else{
-                    mainstr=mainstr+sec.Section_Content__c;
-                }
-            }
             String mainObject=objectName;
-            List<String> childTablesNames = new List<String>();
-            /* <Checks if string contains %% if yes then customLogic method is called> */
-            if(mainstr.contains('%%') && replaceData.size()>0)
-            {           
-                for(Document_Template_Section__c sec: selectedTemplateContents)
-                {
-                    String str =customLogic(replaceData,sec.Section_Content__c);
-                    sec.Section_Content__c=sec.Section_Content__c.replace(sec.Section_Content__c, str);   
-                }
-            }
-            else if(mainstr.contains('##'))
-            {
-                 for(Document_Template_Section__c sec: selectedTemplateContents)
-                { 
-                    List<string> replaceStr = replaceTableSectionContent(sec.Section_Content__c);
-                    sec.Section_Content__c=sec.Section_Content__c.replace(sec.Section_Content__c, replaceStr[0]);
-                    replaceStr[0]='';
-                    childTablesNames.addAll(replaceStr);
-                }
-                
-            }
-            
-            List<Document_Template_Section__c> filteredList = new List<Document_Template_Section__c>();
+            // A table placed inside another section with ##Section name## is embedded first (tables of this template only), then the
+            // values of a Flow or Apex class (%%token%%) are placed; the merge fields of the record come last so that fields inside
+            // an embedded table are found too.
+            Set<String> embeddedNames = embedTables(selectedTemplateContents);
             for (Document_Template_Section__c sec : selectedTemplateContents) {
-                if (!childTablesNames.contains(sec.Name)) {
-                    filteredList.add(sec);
-                }
+                sec.Section_Content__c = customLogic(replaceData == null ? new Map<String, Object>() : replaceData, sec.Section_Content__c);
             }
-            selectedTemplateContents = filteredList; 
+            List<String> childTablesNames = new List<String>(embeddedNames);
+            selectedTemplateContents = withoutEmbeddedTables(selectedTemplateContents, embeddedNames);
+            mainstr = null;
+            for (Document_Template_Section__c sec : selectedTemplateContents) {
+                mainstr = mainstr == null ? sec.Section_Content__c : mainstr + sec.Section_Content__c;
+            }
+            if (mainstr == null) { mainstr = ''; }
             
             Pattern p = Pattern.compile('\\{!.+?\\}');
             Matcher m = p.matcher(mainstr);
@@ -308,6 +286,8 @@ public with sharing class MergeFieldsClass {
      */
     public static List<Document_Template_Section__c> mergefieldsMethodMultiple(List<Document_Template_Section__c> selectedTemplateContents, List<String> recordIds) {   
         try{
+            selectedTemplateContents = withoutEmbeddedTables(selectedTemplateContents, embedTables(selectedTemplateContents));   // ##Section## tables, as in the single record path
+            for (Document_Template_Section__c section : selectedTemplateContents) { section.Section_Content__c = customLogic(new Map<String, Object>(), section.Section_Content__c); }   // values of a Flow or class belong to one record: no placeholder text is left over
             List<Document_Template_Section__c> docsTempLst = new List<Document_Template_Section__c>();
 				String objectName = ((Id)recordIds[0]).getSObjectType().getDescribe().getName();
 				String mainstr;
@@ -409,6 +389,8 @@ public with sharing class MergeFieldsClass {
     public static Map<Id,List<Document_Template_Section__c>> mergefieldsMethodMultiplePdf(List<Document_Template_Section__c> selectedTemplateContents, List<String> recordIds) {
         Map<Id,List<Document_Template_Section__c>> docsTempLstMap = new Map<Id,List<Document_Template_Section__c>>();
         try{
+            selectedTemplateContents = withoutEmbeddedTables(selectedTemplateContents, embedTables(selectedTemplateContents));   // ##Section## tables, as in the single record path
+            for (Document_Template_Section__c section : selectedTemplateContents) { section.Section_Content__c = customLogic(new Map<String, Object>(), section.Section_Content__c); }   // values of a Flow or class belong to one record: no placeholder text is left over
             List<Document_Template_Section__c> docsTempLst = new List<Document_Template_Section__c>();
             //List<Map<String,Object>> docsTempLstMap = new List<Map<String,Object>>();
             String objectName = ((Id)recordIds[0]).getSObjectType().getDescribe().getName();
@@ -509,89 +491,166 @@ public with sharing class MergeFieldsClass {
         return docsTempLstMap;
     }
     
-     /* <customLogic method is used to replace %%data%% with the respective value from the
-         map mp which is constructed in the GenericController class as well as from the flow> */
-        
+     /* <customLogic places the values of a Flow or an Apex class (the map mp) into the text of one section:
+         - %%List.Field%% in the row of a table: one row for each item of the list (the first row of the table is the pattern),
+         - %%Name%% (or %%Path.To.Value%%) anywhere else: the value, and nothing when there is none.
+         Text of the data is made safe for the PDF page (& and < are escaped), a value that is HTML is kept.> */
      public static String customLogic(Map<String, Object> mp, String mainstr) {
-        String result = '';
-        Pattern tokenPattern = Pattern.compile('%%(.*?)%%');
-        Matcher tokenMatcher = tokenPattern.matcher(mainstr);
-        List<String> tokens = new List<String>();
-    
-        while (tokenMatcher.find()) {
-            tokens.add(tokenMatcher.group(1));
-        }
-    
-        if (!tokens.isEmpty()) {
-            List<String> rows = new List<String>();
-            String trPatternStr = '<tr([^>]*)>([\\s\\S]*?)</tr>';
-            Pattern trPattern = Pattern.compile(trPatternStr);
-            Matcher trMatcher = trPattern.matcher(mainstr);
-            String trAttributes = '';
-    
-            if (trMatcher.find()) {
-                trAttributes = trMatcher.group(1);
-            }
-            Boolean hasSNoColumn = mainstr.contains('S.No');
-            
-            String tdPatternStr = '<td([^>]*)>([\\s\\S]*?)</td>';
-            Pattern tdPattern = Pattern.compile(tdPatternStr);
-            Matcher tdMatcher = tdPattern.matcher(mainstr);
-            List<String> tdAttributes = new List<String>();
-            List<String> tdContent = new List<String>();
+        if (String.isBlank(mainstr) || !mainstr.contains('%%')) { return mainstr; }
+        String result = mainstr;
 
-            while (tdMatcher.find()) {
-                tdAttributes.add(tdMatcher.group(1));
-                tdContent.add(tdMatcher.group(2));
-            }
-    
-            List<Map<String, Object>> wrapperDataList = getDataFromMap(mp, tokens);
-            Integer serialNumber = 1; 
-            for (Map<String, Object> data : wrapperDataList) {
-                List<String> rowCells = new List<String>();
-                Integer index = 0;
-                if (hasSNoColumn) {
-                    rowCells.add('<td' + (tdAttributes.size() > index ? tdAttributes[index] : '') + '>' + serialNumber + '</td>');
-                    index++;
+        Matcher bodyMatcher = Pattern.compile('(<tbody[^>]*>)([\\s\\S]*?)(</tbody>)').matcher(mainstr);
+        if (bodyMatcher.find()) {
+            String body = bodyMatcher.group(2);
+            List<String> tokens = tokensIn(body);
+            List<String> listTokens = new List<String>();
+            for (String token : tokens) { if (token.contains('.')) { listTokens.add(token); } }
+
+            if (!listTokens.isEmpty()) {
+                Matcher trMatcher = Pattern.compile('<tr([^>]*)>').matcher(body);
+                String trAttributes = trMatcher.find() ? trMatcher.group(1) : '';
+                Boolean hasSNoColumn = mainstr.contains('S.No');
+                Matcher tdMatcher = Pattern.compile('<td([^>]*)>([\\s\\S]*?)</td>').matcher(body);
+                List<String> tdAttributes = new List<String>();
+                List<String> tdContent = new List<String>();
+                while (tdMatcher.find()) {
+                    tdAttributes.add(tdMatcher.group(1));
+                    tdContent.add(tdMatcher.group(2));
                 }
 
-                for (String token : tokens) {
-                    String value = '';
-                    if (token.contains('.')) {
-                        value = getTokenValue(data, token);
-                    } else {
-                        value = mp.containsKey(token) ? String.valueOf(mp.get(token)) : '';
+                List<String> rows = new List<String>();
+                Integer serialNumber = 1;
+                for (Map<String, Object> data : getDataFromMap(mp, listTokens)) {
+                    List<String> rowCells = new List<String>();
+                    Integer index = 0;
+                    if (hasSNoColumn) {
+                        rowCells.add('<td' + (tdAttributes.size() > index ? tdAttributes[index] : '') + '>' + serialNumber + '</td>');
+                        index++;
                     }
-    
-                    String tdAttr = tdAttributes.size() > index ? tdAttributes[index] : '';
-                    String tdInnerContent = tdContent.size() > index ? tdContent[index] : '';
-                    if (!String.isBlank(token)) {
-                        tdInnerContent = tdInnerContent.replace('%%' + token + '%%', value != null ? value : '');
+                    for (String token : tokens) {
+                        String value = token.contains('.') ? getTokenValue(data, token) : valueOf(mp, token);
+                        String tdAttr = tdAttributes.size() > index ? tdAttributes[index] : '';
+                        String tdInnerContent = tdContent.size() > index ? tdContent[index] : '';
+                        tdInnerContent = tdInnerContent.replace('%%' + token + '%%', safeText(value));
+                        rowCells.add('<td' + tdAttr + '>' + tdInnerContent + '</td>');
+                        index++;
                     }
-                    rowCells.add('<td' + tdAttr + '>' + tdInnerContent + '</td>');
-                    index++;
+                    while (index < tdContent.size()) {
+                        rowCells.add('<td' + (tdAttributes.size() > index ? tdAttributes[index] : '') + '></td>');
+                        index++;
+                    }
+                    rows.add('<tr' + trAttributes + '>' + String.join(rowCells, '') + '</tr>');
+                    serialNumber++;
                 }
-
-                while (index < tdContent.size()) {
-                    rowCells.add('<td' + (tdAttributes.size() > index ? tdAttributes[index] : '') + '></td>');
-                    index++;
-                }
-    
-                String row = '<tr' + trAttributes + '>' + String.join(rowCells, '') + '</tr>';
-                rows.add(row);
-                serialNumber++;
+                result = mainstr.substring(0, bodyMatcher.start(2)) + String.join(rows, '') + mainstr.substring(bodyMatcher.end(2));
             }
-
-            String tableBody = String.join(rows, '');
-            result = mainstr.replaceAll('(<tbody[^>]*>).*?(</tbody>)', '$1' + tableBody + '$2');
-        } else {
-            result = mainstr;
         }
-    
-        result = result.trim();
-        return result;
+        return replaceScalars(mp, result).trim();
     }
-    
+
+    private static List<String> tokensIn(String text) {
+        List<String> tokens = new List<String>();
+        Matcher tokenMatcher = Pattern.compile('%%(.*?)%%').matcher(text);
+        while (tokenMatcher.find()) { tokens.add(tokenMatcher.group(1)); }
+        return tokens;
+    }
+
+    // The value of a token that is not a list: a plain name, or a path through nested maps. Lists and maps give nothing.
+    private static String valueOf(Map<String, Object> mp, String token) {
+        Object value = token.contains('.') ? getDataFromMap(mp, token.split('\\.'), 0) : mp.get(token);
+        return (value == null || value instanceof List<Object> || value instanceof Map<String, Object>) ? '' : String.valueOf(value);
+    }
+
+    // Every %%token%% that is still in the text becomes its value, or nothing.
+    private static String replaceScalars(Map<String, Object> mp, String text) {
+        Matcher tokenMatcher = Pattern.compile('%%(.*?)%%').matcher(text);
+        String result = '';
+        Integer startAt = 0;
+        while (tokenMatcher.find()) {
+            result += text.substring(startAt, tokenMatcher.start()) + safeText(valueOf(mp, tokenMatcher.group(1)));
+            startAt = tokenMatcher.end();
+        }
+        return result + text.substring(startAt);
+    }
+
+    // Text from a Flow or Apex class goes into XHTML: & and < must not break the PDF page. A value that is HTML is kept.
+    private static String safeText(String value) {
+        if (value == null) { return ''; }
+        String safe = Pattern.compile('&(?!#?\\w+;)').matcher(value).replaceAll('&amp;');
+        if (!Pattern.compile('<[a-zA-Z/][^>]*>').matcher(safe).find()) {
+            safe = safe.replace('<', '&lt;').replace('>', '&gt;');
+        }
+        return safe;
+    }
+
+    // ##Section name## inside a section is replaced by the Table section of that name in the same template (never one of another
+    // template or version). A table inside a paragraph on its own replaces the paragraph. Tables may contain further placeholders.
+    // Returns the names of the tables that were embedded (they are not printed a second time).
+    private static Set<String> embedTables(List<Document_Template_Section__c> sections) {
+        Map<String, String> tables = new Map<String, String>();
+        for (Document_Template_Section__c section : sections) {
+            if (!section.isSet('Name') || !section.isSet('Type__c')) { continue; }
+            if (section.Type__c == 'Table' && String.isNotBlank(section.Section_Content__c) && !tables.containsKey(section.Name)) {
+                tables.put(section.Name, section.Section_Content__c);
+            }
+        }
+        Set<String> used = new Set<String>();
+        for (Integer pass = 0; pass < 5; pass++) {
+            Boolean changed = false;
+            for (Document_Template_Section__c section : sections) {
+                String content = section.Section_Content__c;
+                if (!section.isSet('Name') || String.isBlank(content) || !content.contains('##')) { continue; }
+                for (String name : tables.keySet()) {
+                    String token = '##' + name + '##';
+                    if (name == section.Name || !content.contains(token)) { continue; }
+                    content = replaceToken(content, token, tables.get(name));
+                    used.add(name);
+                    changed = true;
+                }
+                section.Section_Content__c = content;
+                if (section.Type__c == 'Table' && tables.containsKey(section.Name)) { tables.put(section.Name, content); }
+            }
+            if (!changed) { break; }
+        }
+        return used;
+    }
+
+    private static List<Document_Template_Section__c> withoutEmbeddedTables(List<Document_Template_Section__c> sections, Set<String> embeddedNames) {
+        List<Document_Template_Section__c> kept = new List<Document_Template_Section__c>();
+        for (Document_Template_Section__c section : sections) {
+            if (!(section.isSet('Name') && section.Type__c == 'Table' && embeddedNames.contains(section.Name))) { kept.add(section); }
+        }
+        return kept;
+    }
+
+    // Literal replacement (no regular expression, so $ and \ in the table are kept); a paragraph that holds only the token goes away with it.
+    private static String replaceToken(String content, String token, String replacement) {
+        String result = '';
+        Integer startAt = 0;
+        while (true) {
+            Integer at = content.indexOf(token, startAt);
+            if (at < 0) { break; }
+            Integer pOpen = content.lastIndexOf('<p', at);
+            Integer pOpenEnd = pOpen >= 0 ? content.indexOf('>', pOpen) : -1;
+            Integer pClose = content.indexOf('</p>', at + token.length());
+            Boolean alone = pOpen >= startAt && pOpenEnd >= 0 && pOpenEnd < at && pClose >= 0
+                && (content.substring(pOpen, pOpen + 3) == '<p>' || content.substring(pOpen, pOpen + 3) == '<p ')
+                && blankText(content.substring(pOpenEnd + 1, at)) && blankText(content.substring(at + token.length(), pClose));
+            if (alone) {
+                result += content.substring(startAt, pOpen) + replacement;
+                startAt = pClose + 4;
+            } else {
+                result += content.substring(startAt, at) + replacement;
+                startAt = at + token.length();
+            }
+        }
+        return result + content.substring(startAt);
+    }
+
+    private static Boolean blankText(String text) {
+        return String.isBlank(text.replace('<br>', '').replace('<br/>', '').replace('<br />', '').replace('&nbsp;', ''));
+    }
+
     // Recursive method to navigate through the map or list structure
     private static Object getDataFromMap(Object current, List<String> path, Integer index) {
         if (index >= path.size()) {
@@ -658,34 +717,5 @@ public with sharing class MergeFieldsClass {
         List<String> parts = token.split('\\.');
         String lastPart = parts[parts.size() - 1];
         return data.containsKey(lastPart) ? String.valueOf(data.get(lastPart)) : '';
-    }
-    
-    //Method Added for Nested Tables Implementation 
-    public static List<String> replaceTableSectionContent(String mainstr) {   
-        Pattern pattern = Pattern.compile('##(.*?)##');
-        Matcher matcher = pattern.matcher(mainstr);
-        List<String> modifiedStr = new List<String> {mainstr};
-        while (matcher.find()) {
-            String extractedValue = matcher.group(1);
-            try {
-                Document_Template_Section__c section = [
-                    SELECT Section_Content__c,name
-                    FROM Document_Template_Section__c
-                    WHERE Type__c = 'Table' AND Name = :extractedValue
-                    LIMIT 1
-                ];
-    
-                if (section != null && String.isNotEmpty(section.Section_Content__c)) {
-                    String sectionContent = section.Section_Content__c;
-                    modifiedStr.add(extractedValue);
-                    modifiedStr[0] = modifiedStr[0].replaceFirst('##' + extractedValue + '##', sectionContent);
-                } else {
-                    System.debug('No matching record found');
-                }
-            } catch (Exception e) {
-                System.debug('Error during string replacement: ' + e.getMessage());
-            }
-        }    
-        return modifiedStr;
     }
 }

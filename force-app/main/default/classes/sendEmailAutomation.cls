@@ -64,9 +64,28 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
         this.isSpecificToFox = (boolean) (inputMap.containsKey('isSpecificToFox')?inputMap.get('isSpecificToFox'):false);
         this.documentRecordInserted = (String) (inputMap.containsKey('insertedDocumentId')?inputMap.get('insertedDocumentId'):null);
         this.attachmentName = (String) (inputMap.containsKey('documentNameAfterGeneration')?inputMap.get('documentNameAfterGeneration'):null);
-        this.attachmentOrientation = (String) (inputMap.containsKey('orientation')?inputMap.get('orientation'):'Potrait');
+        this.attachmentOrientation = (String) (inputMap.containsKey('orientation')?inputMap.get('orientation'):'Portrait');
         this.attachmentPageSize = (String) (inputMap.containsKey('pageSize')?inputMap.get('pageSize'):'A4');
         this.emailStructure = (String) (inputMap.containsKey('emailStructure')?inputMap.get('emailStructure'):null);
+    }
+
+    @TestVisible private static String handlerClassNameForTest;
+
+    // Calls the class named in the custom metadata record DXTemplates_HandlerClass "HandlerClass", if there is one. A package has no
+    // such record of its own: without it (or when its class is gone) the chain simply ends here.
+    private static void callHandler(Map<String,Object> input) {
+        String className = handlerClassNameForTest;
+        if (className == null) {
+            List<DXTemplates_HandlerClass__mdt> records = [SELECT HandlerClassName__c FROM DXTemplates_HandlerClass__mdt WHERE Label = 'HandlerClass' LIMIT 1];
+            if (!records.isEmpty()) { className = records[0].HandlerClassName__c; }
+        }
+        if (String.isBlank(className)) { return; }
+        Type handlerType = Type.forName(className);
+        if (handlerType == null) {
+            LogHandler.createLog((Id) null, 'sendEmailAutomation.callHandler()', 'The handler class ' + className + ' was not found.', 'The class named in the custom metadata record HandlerClass does not exist; the chain ends after the PDF was saved.', 'Information');
+            return;
+        }
+        ((DXHandlerInterface) handlerType.newInstance()).execute(input);
     }
 
     public void execute(QueueableContext context) {
@@ -104,12 +123,8 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
                     throw new SafeClassException(String.join( errorList, ', ' ));
                 }
 
-                DXTemplates_HandlerClass__mdt metaDataContent = [SELECT Id,Label,HandlerClassName__c FROM DXTemplates_HandlerClass__mdt where Label = 'HandlerClass'];
-                if(metaDataContent != null) {
-                    Type objectType = Type.forName(metaDataContent.HandlerClassName__c);
-                    DXHandlerInterface api = (DXHandlerInterface)objectType.newInstance();
-                    Map<String,Object> replaceData = api.execute(null);
-                }  
+                // the class that continues the chain is told what was made: the record, the saved PDF and the document it came from
+                callHandler(new Map<String,Object>{ 'recordId' => attachmentParentId, 'attachmentId' => insertedAttachmentId, 'attachmentName' => attachmentName, 'documentId' => documentRecordInserted });
 
             } else {
                 Attachment documentAttachment = new Attachment();
@@ -130,12 +145,7 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
                     insert cv;
                 }
 
-                DXTemplates_HandlerClass__mdt metaDataContent = [SELECT Id,Label,HandlerClassName__c FROM DXTemplates_HandlerClass__mdt where Label = 'HandlerClass'];
-                if(metaDataContent != null) {
-                    Type objectType = Type.forName(metaDataContent.HandlerClassName__c);
-                    DXHandlerInterface api = (DXHandlerInterface)objectType.newInstance();
-                    Map<String,Object> replaceData = api.execute(outputMap);
-                }         
+                callHandler(outputMap);
             }
         }
         catch(Exception ex) {

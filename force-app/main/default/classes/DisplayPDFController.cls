@@ -259,7 +259,9 @@ global with sharing class DisplayPDFController
                                   WHERE Id = :inputparam WITH SECURITY_ENFORCED];
             }
             //System.debug('docrec -->'+ docrec);
-            Map<String, Object> m =  (Map<String, Object>) JSON.deserializeUntyped(docrec.Document_Template__r.PDF_Page_Properties__c);
+            // a template without saved Page Properties (never opened in the designer) uses the designer's defaults
+            String savedProperties = docrec.Document_Template__r.PDF_Page_Properties__c;
+            Map<String, Object> m =  (Map<String, Object>) JSON.deserializeUntyped(String.isBlank(savedProperties) ? DefaultPageProperties.JSON_TEXT : savedProperties);
             Map<String,Object> m1 = (Map<String,Object>) JSON.deserializeUntyped(JSON.serialize(m.get('pagePropCSS')));
             Map<String,Object> pageProperries = (Map<String,Object>) JSON.deserializeUntyped(JSON.serialize(m.get('pageMargins'))); 
             Map<String,Object> footerMapJSON = (Map<String,Object>) JSON.deserializeUntyped(JSON.serialize(m.get('footerJSONVal')));
@@ -289,10 +291,13 @@ global with sharing class DisplayPDFController
             styleList.put('footer_left',  (String)footerMapJSON.get('footer_left'));
             
             sanitizedHeaderJSON = DisplayPDFController.getSanitizedHeaderJSON(styleList);
-            selectedPageSize = ApexPages.currentPage().getParameters().get('selectedPageSize');
-            selectedPageOrientation = ApexPages.currentPage().getParameters().get('selectedPageOrientation');
-            selectedSize= ApexPages.currentPage().getParameters().get('selectedPageSize') +' ' +ApexPages.currentPage().getParameters().get('selectedPageOrientation');
-            isLandscape = selectedPageOrientation=='Landscape' ? true : false;
+            // The Flow action asks for "Potrait" in its help text and takes any text: only Landscape is landscape, any other word is Portrait;
+            // a size that is not a paper size of the page falls back to A4 (the value was put into the CSS as it came, so a wrong word dropped the page size).
+            String requestedSize = ApexPages.currentPage().getParameters().get('selectedPageSize');
+            selectedPageSize = (requestedSize != null && new Set<String>{ 'A3', 'A4', 'A5', 'B4', 'B5', 'Letter', 'Legal', 'Ledger' }.contains(requestedSize)) ? requestedSize : 'A4';
+            selectedPageOrientation = ApexPages.currentPage().getParameters().get('selectedPageOrientation') == 'Landscape' ? 'Landscape' : 'Portrait';
+            selectedSize = selectedPageSize + ' ' + selectedPageOrientation;
+            isLandscape = selectedPageOrientation == 'Landscape';
 
             DxTemplates_VF_Style__mdt[] stylesLst = [select Id, Label, MasterLabel,DeveloperName,  CSS_Style_List__c from DxTemplates_VF_Style__mdt with USER_MODE];
             for(DxTemplates_VF_Style__mdt style: stylesLst){
@@ -381,9 +386,8 @@ global with sharing class DisplayPDFController
                         }
                     }
                 }
-            } else {
-                displayText = 'ID not found';
             }
+            // (a document without header and footer content keeps its body; this branch used to replace the body with "ID not found")
             Integer heightVal = Integer.valueOf(height.replace('px', ''));
             if(isLandscape == true) {
                 //values for firstPage Header
@@ -674,6 +678,73 @@ global with sharing class DisplayPDFController
     * @param          objectApiName   API name of the object related to the document template
     * @return         Map<String,Object>  List of document template sections
     */
+    /**
+    * @description Runs the Apex class and the Flow that a template names (its process) and returns their values, which fill the
+    *              %%placeholders%% of the template. Shared by the Generate PDF screen and the generation that runs on the server.
+    *              A class or flow that is gone (deleted, deactivated) is skipped and logged instead of stopping the generation.
+    */
+    public static Map<String,Object> runTemplateProcess(Id templateId, String recordId) {
+        Map<String,Object> replaceData = new Map<String,Object>();
+        List<Document_Template__c> templateData = [SELECT ClassId__c, FlowId__c FROM Document_Template__c WHERE Id = :templateId WITH SECURITY_ENFORCED];
+        if (templateData.isEmpty()) { return replaceData; }
+        if (!String.isEmpty(templateData[0].ClassId__c)) {
+            List<ApexClass> classnames = [SELECT Name FROM ApexClass WHERE Id = :templateData[0].ClassId__c WITH SECURITY_ENFORCED];
+            Type handlerType = classnames.isEmpty() ? null : Type.forName(classnames[0].Name);
+            if (handlerType == null) {
+                LogHandler.createLog((Id) null, 'DisplayPDFController.runTemplateProcess()', 'The Apex class of template ' + templateId + ' was not found.', 'The Apex class of the template is missing; its values are left out.', 'Information');
+            } else {
+                DXHandlerInterface api = (DXHandlerInterface) handlerType.newInstance();
+                Map<String,Object> tempData = new Map<String,Object>{ 'templateId' => templateId, 'recordId' => recordId };
+                Map<String,Object> fromClass = api.execute(tempData);
+                if (fromClass != null) { replaceData.putAll(fromClass); }
+            }
+        }
+        if (!String.isEmpty(templateData[0].FlowId__c)) {
+            List<FlowDefinitionView> flownames = [SELECT Label, ApiName, Id, DurableId FROM FlowDefinitionView WHERE ProcessType='AutoLaunchedFlow' AND IsActive=True AND DurableId=:templateData[0].FlowId__c WITH SECURITY_ENFORCED];
+            if (flownames.isEmpty()) {
+                LogHandler.createLog((Id) null, 'DisplayPDFController.runTemplateProcess()', 'The flow of template ' + templateId + ' is not active or not found.', 'The flow of the template is not active; its values are left out.', 'Information');
+            } else {
+                Flow.Interview myFlow = Flow.Interview.createInterview(flownames[0].ApiName, new Map<String,Object>{ 'recordIdVal' => recordId });
+                myFlow.start();
+                String data = (String) myFlow.getVariableValue('genericData');
+                if (!String.isEmpty(data)) {
+                    replaceData.putAll((Map<String, Object>) JSON.deserializeUntyped(data));
+                }
+            }
+        }
+        return replaceData;
+    }
+
+    /**
+    * @description The sections of ONE record ready to print, for generation without the browser (Flow action, API, chained Queueable):
+    *              what the Generate PDF screen shows. Values of the template's class and flow, translations, embedded tables and merge
+    *              fields are applied, and a section whose visibility rule is not met for the record is left out.
+    */
+    public static List<Document_Template_Section__c> getTemplateSectionsForRecord(Id templateId, Id recordId) {
+        String objectApiName = recordId.getSObjectType().getDescribe().getName();
+        List<Document_Template_Section__c> sections = [SELECT Id, Name, Section_Content__c, Type__c, New_Page__c, Sequence__c, Section_Visibility_Rule__c FROM Document_Template_Section__c WHERE Document_Template__c = :templateId WITH SECURITY_ENFORCED ORDER BY Sequence__c ASC];
+        Map<Id, String> ruleOfSection = new Map<Id, String>();
+        Set<Id> ruleIds = new Set<Id>();
+        for (Document_Template_Section__c section : sections) {
+            if (section.Section_Visibility_Rule__c != null) { ruleOfSection.put(section.Id, section.Section_Visibility_Rule__c); ruleIds.add(section.Section_Visibility_Rule__c); }
+        }
+        Map<Id, Rule__c> rules = new Map<Id, Rule__c>([SELECT Id, Rule_Expression__c, (SELECT Name, Condition_Field__c, Operator__c, Value__c FROM Rule_Conditions__r) FROM Rule__c WHERE Id IN :ruleIds WITH SECURITY_ENFORCED]);
+        Map<String, Object> record = new Map<String, Object>();
+        if (!ruleIds.isEmpty()) {
+            String fields = String.join(new List<String>(Schema.getGlobalDescribe().get(objectApiName).getDescribe().fields.getMap().keySet()), ', ');
+            List<SObject> records = Database.query('SELECT ' + fields + ' FROM ' + String.escapeSingleQuotes(objectApiName) + ' WHERE Id = :recordId');
+            if (!records.isEmpty()) { record = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(records[0])); }
+        }
+
+        List<Document_Template_Section__c> merged = MergeFieldsClass.mergefieldsMethod(sections, recordId, runTemplateProcess(templateId, recordId));
+        List<Document_Template_Section__c> visible = new List<Document_Template_Section__c>();
+        for (Document_Template_Section__c section : merged) {
+            Rule__c rule = rules.get(ruleOfSection.get(section.Id));
+            if (rule == null || SectionVisibility.isVisible(rule.Rule_Expression__c, rule.Rule_Conditions__r, record)) { visible.add(section); }
+        }
+        return visible;
+    }
+
     @AuraEnabled
     public static Map<String,Object> getTemplateSections(ID templateId, String recordId, String objectApiName){ 
         try{
@@ -696,28 +767,7 @@ global with sharing class DisplayPDFController
             templatecontentsData.put('record',records);
             //Code added by Tanmayee and Bhavya ends here
             List<Document_Template__c> templateData=[SELECT ClassId__c,FlowId__c FROM Document_Template__c WHERE id=:templateId WITH SECURITY_ENFORCED];
-            Map<String,Object> replaceData=new Map<String,Object>();
-            if(!string.isEmpty(templateData[0].ClassId__c)) {
-                List<ApexClass> classnames= [SELECT Name FROM ApexClass WHERE Id=:templateData[0].ClassId__c WITH SECURITY_ENFORCED];
-                Type t = Type.forName(classnames[0].Name);
-                DXHandlerInterface api = (DXHandlerInterface)t.newInstance();
-                Map<String,Object> tempData= new Map<String,Object>();
-                tempData.put('templateId',templateId);
-                tempData.put('recordId',recordId);
-                replaceData = api.execute(tempData);  
-                System.debug('replaceData in apex block >> '+ replaceData);
-            }
-            if(!string.isEmpty(templateData[0].FlowId__c)) {
-                    List <FlowDefinitionView> flownames= [SELECT  Label, ApiName,Id,DurableId FROM FlowDefinitionView where ProcessType='AutoLaunchedFlow' AND IsActive=True AND DurableId=:templateData[0].FlowId__c WITH SECURITY_ENFORCED];   
-                    Map<String,Object> inputs=new map<String,Object>{'recordIdVal'=>recordId};
-                    Flow.Interview myFlow = Flow.Interview.createInterview(flownames[0].ApiName, inputs);
-                    myFlow.start();
-                    string data=(string)myFlow.getvariableValue('genericData');
-                    if(!string.isEmpty(data)){
-                    Map<String, Object>  mapdata =(Map<String, Object>) JSON.deserializeUntyped(data); 
-                    replaceData.putAll(mapdata); 
-                }                  
-            }
+            Map<String,Object> replaceData = runTemplateProcess(templateId, recordId);
             Id docid;
             List<Document__c> doclist=new List<Document__c>();
             Document__c doc= new Document__c();
@@ -770,7 +820,10 @@ global with sharing class DisplayPDFController
     @AuraEnabled
     public static List<Document_Template_Section__c> getTemplateSectionsMulRecords(ID templateId, List<String> recordIdLst, String objectApiName){ 
         try{
-            List<Document_Template_Section__c> selectedTemplateContents=[select id,Section_Content__c, Type__c, New_Page__c, Sequence__c from Document_Template_Section__c where Document_Template__c=:templateId WITH SECURITY_ENFORCED ORDER BY Sequence__c ASC];
+            if (recordIdLst != null && recordIdLst.size() == 1) {
+                return getTemplateSectionsForRecord(templateId, (Id) recordIdLst[0]);
+            }
+            List<Document_Template_Section__c> selectedTemplateContents=[select id,Name,Section_Content__c, Type__c, New_Page__c, Sequence__c from Document_Template_Section__c where Document_Template__c=:templateId WITH SECURITY_ENFORCED ORDER BY Sequence__c ASC];
             selectedTemplateContents = MergeFieldsClass.mergefieldsMethodMultiple(selectedTemplateContents,recordIdLst);
             return selectedTemplateContents;
         } catch (Exception ex) {
@@ -784,7 +837,7 @@ global with sharing class DisplayPDFController
     public static Map<Id,List<Document_Template_Section__c>> getTemplateSectionsMulRecordsPDFs(ID templateId, List<String> recordIdLst, String objectApiName){ 
         try{
             Map<Id,List<Document_Template_Section__c>> docsTempLstMap = new Map<Id,List<Document_Template_Section__c>>();
-            List<Document_Template_Section__c> selectedTemplateContents=[select id,Section_Content__c, Type__c, New_Page__c, Sequence__c from Document_Template_Section__c where Document_Template__c=:templateId WITH SECURITY_ENFORCED ORDER BY Sequence__c ASC];
+            List<Document_Template_Section__c> selectedTemplateContents=[select id,Name,Section_Content__c, Type__c, New_Page__c, Sequence__c from Document_Template_Section__c where Document_Template__c=:templateId WITH SECURITY_ENFORCED ORDER BY Sequence__c ASC];
             docsTempLstMap = MergeFieldsClass.mergefieldsMethodMultiplePdf(selectedTemplateContents,recordIdLst);
             return docsTempLstMap;
         } catch (Exception ex) {
