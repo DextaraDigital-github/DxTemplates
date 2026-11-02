@@ -80,7 +80,7 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
             if (!records.isEmpty()) { className = records[0].HandlerClassName__c; }
         }
         if (String.isBlank(className)) { return; }
-        Type handlerType = Type.forName(className);
+        Type handlerType = TypeLookup.forName(className, null);
         if (handlerType == null) {
             LogHandler.createLog((Id) null, 'sendEmailAutomation.callHandler()', 'The handler class ' + className + ' was not found.', 'The class named in the custom metadata record HandlerClass does not exist; the chain ends after the PDF was saved.', 'Information');
             return;

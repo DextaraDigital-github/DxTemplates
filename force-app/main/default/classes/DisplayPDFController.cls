@@ -695,8 +695,8 @@ global with sharing class DisplayPDFController
         List<Document_Template__c> templateData = [SELECT ClassId__c, FlowId__c FROM Document_Template__c WHERE Id = :templateId WITH SECURITY_ENFORCED];
         if (templateData.isEmpty()) { return replaceData; }
         if (!String.isEmpty(templateData[0].ClassId__c)) {
-            List<ApexClass> classnames = [SELECT Name FROM ApexClass WHERE Id = :templateData[0].ClassId__c WITH SECURITY_ENFORCED];
-            Type handlerType = classnames.isEmpty() ? null : Type.forName(classnames[0].Name);
+            List<ApexClass> classnames = [SELECT Name, NamespacePrefix FROM ApexClass WHERE Id = :templateData[0].ClassId__c WITH SECURITY_ENFORCED];
+            Type handlerType = classnames.isEmpty() ? null : TypeLookup.forName(classnames[0].Name, classnames[0].NamespacePrefix);
             if (handlerType == null) {
                 LogHandler.createLog((Id) null, 'DisplayPDFController.runTemplateProcess()', 'The Apex class of template ' + templateId + ' was not found.', 'The Apex class of the template is missing; its values are left out.', 'Information');
             } else {
@@ -707,11 +707,13 @@ global with sharing class DisplayPDFController
             }
         }
         if (!String.isEmpty(templateData[0].FlowId__c)) {
-            List<FlowDefinitionView> flownames = [SELECT Label, ApiName, Id, DurableId FROM FlowDefinitionView WHERE ProcessType='AutoLaunchedFlow' AND IsActive=True AND DurableId=:templateData[0].FlowId__c WITH SECURITY_ENFORCED];
+            List<FlowDefinitionView> flownames = [SELECT Label, ApiName, NamespacePrefix, Id, DurableId FROM FlowDefinitionView WHERE ProcessType='AutoLaunchedFlow' AND IsActive=True AND DurableId=:templateData[0].FlowId__c WITH SECURITY_ENFORCED];
             if (flownames.isEmpty()) {
                 LogHandler.createLog((Id) null, 'DisplayPDFController.runTemplateProcess()', 'The flow of template ' + templateId + ' is not active or not found.', 'The flow of the template is not active; its values are left out.', 'Information');
             } else {
-                Flow.Interview myFlow = Flow.Interview.createInterview(flownames[0].ApiName, new Map<String,Object>{ 'recordIdVal' => recordId });
+                Flow.Interview myFlow = String.isBlank(flownames[0].NamespacePrefix)
+                    ? Flow.Interview.createInterview('', flownames[0].ApiName, new Map<String,Object>{ 'recordIdVal' => recordId })
+                    : Flow.Interview.createInterview(flownames[0].NamespacePrefix, flownames[0].ApiName, new Map<String,Object>{ 'recordIdVal' => recordId });
                 myFlow.start();
                 String data = (String) myFlow.getVariableValue('genericData');
                 if (!String.isEmpty(data)) {
