@@ -1,8 +1,8 @@
 // Test handler for the DxTemplates "Apex class" process type. It plays the role of a customer's class: it implements the package's
 // global interface by its qualified name, so the same file deploys into the dev scratch org (namespace DxCPQ) and into a
 // subscriber org that has the package installed.
-public with sharing class ZZPlaceholderHandler implements DxCPQ.DXHandlerInterface {
-    public Map<String, Object> execute(Map<String, Object> input) {
+global with sharing class ZZPlaceholderHandler implements DxCPQ.DXHandlerInterface {
+    global Map<String, Object> execute(Map<String, Object> input) {
         Map<String, Object> output = new Map<String, Object>();
         String name = 'Datamatics';
         if (input != null && input.get('recordId') != null) {

@@ -1,6 +1,6 @@
 // Heavy-data test handler: 300 line items, long text with special characters, for the "ZZ Heavy Combined" template.
-public with sharing class ZZHeavyHandlerBig implements DxCPQ.DXHandlerInterface {
-    public Map<String, Object> execute(Map<String, Object> input) {
+global with sharing class ZZHeavyHandlerBig implements DxCPQ.DXHandlerInterface {
+    global Map<String, Object> execute(Map<String, Object> input) {
         Map<String, Object> output = new Map<String, Object>();
         List<Object> lines = new List<Object>();
         for (Integer i = 1; i <= 12000; i++) {
