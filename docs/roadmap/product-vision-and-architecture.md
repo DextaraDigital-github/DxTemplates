@@ -297,3 +297,44 @@ since several of this week's surprises were knowledge gaps rather than defects.
 | `parity.apex` | the real "ZZ Heavy Combined" template through `Blob.toPdf` |
 | `inspect.mjs`, `imgcolors.mjs`, `counts.mjs` | PDF readers (text positions, image pixels, completeness counts); need `npm i pdfjs-dist@3.11.174` |
 | `docs/tools/org-seed/zzpack/.../ZZToPdfProbe.cls` | Queueable that renders a File image headlessly |
+
+---
+
+## 11. Decisions and working order (updated 2026-11-10)
+
+### Decisions taken with the owner
+* **Third-party JavaScript is acceptable** if it is free, reliable, and its source is held locally (bundled, no CDN, no server/API call).
+  So pdf.js is allowed. This supersedes the "no external JS" constraint of the original LWC designer for the new canvas.
+* **React is acceptable** (Salesforce Multi-Framework UI bundles). The owner's PoC (`SF Angular React PoC`, managed package
+  `DXLab_MultiFramework` 0.1.0.1 in the Dev Hub) shows managed packaging of React and Angular UI bundles works [Verified: package exists;
+  install in a non-namespaced org reported by the owner]. Still to confirm: AppExchange security review treatment.
+* **The designer becomes a React UI bundle** (full-page app on its own domain, launched from the App Launcher). **The runtime widget on
+  record pages stays LWC**.
+* **Preview must be the real engine output.** Spike result (section 12): feasible with pdf.js or with the browser's own viewer.
+* Branch policy: new work goes to `feature/document-engine-foundation` (pushed), not to `dev-revision`.
+* The throwaway preview probe in the dev org (LWC `zzPdfProbe`, Apex `ZZPdfPreview`, static resource `ZZPdfJs`, tab `ZZ_Pdf_Probe`) is kept and tracked
+  in `docs/tools/org-seed/zzpack`; decide later whether to delete it from the org.
+
+### Working order (one item at a time, each with tests, browser/PDF verification and a commit)
+| # | Item | Why now | Size |
+|---|---|---|---|
+| 1 | Branch, docs map, folder READMEs | Foundation for everything below | done |
+| 2 | Preview spike (React + Apex REST + pdf.js) | Decides the designer direction | done |
+| 3a | Quick win: page sizes A3, A4, A5, B4, B5, Letter, Legal, Ledger in the widget | Controller already supports them | XS |
+| 3b | Quick win: header/footer minimum padding (the zero-padding layout trap) | A user can break the PDF today | S |
+| 3c | Quick win: class picker marks classes that are not `global`; document the rule | Silent failure in installed packages | S |
+| 3d | Quick win: new tables default to automatic column widths (widths become optional) | Removes the tedious width setting; engine sizes by content (verified) | M |
+| 4 | Phase 0 parity: `Blob.toPdf` behind a flag for the headless path, golden-file corpus | Proves the engine switch on real templates | M |
+| 5 | Phase 1: one engine (`DxDocument.generate`), server-side build for the screen, one Related Objects implementation | Removes the size ceiling and the duplicated pipelines | L |
+| 6 | Template model + canvas designer in React, staged: page and header/footer, text and image, tables, conditions and nesting | The core of the owner's vision | XL |
+| 7 | Assets library and bundles, charts and QR, template doctor and health check, bulk generation, Files instead of Attachments | Portability and reach | L |
+
+## 12. Preview spike results (2026-11-10)
+Details, code and deploy steps: `docs/experiments/react-preview-spike/README.md`.
+* React UI bundle in a managed-package-style app calls Apex REST with `sdk.fetch`, receives PDF bytes, and shows them with locally
+  bundled pdf.js (worker included, no CDN) and, with no library at all, in an `<iframe>` using a `blob:` URL [Verified].
+* Click on the page returns the content under the cursor from the PDF text layer (exact hit, distance 0 px) [Verified]; mapping text to
+  a block needs a marker or a lookup (design item).
+* Latency: warm 1 page about 0.95 s REST + 0.67 s draw; 8 pages about 1.1 s + 1.4 s. Server `toPdf` is 12 to 49 ms, so about 0.9 s is
+  platform/network overhead. The canvas therefore needs an instant local approximation plus the real PDF refreshing behind it.
+* UI bundles need Salesforce CLI 2.157 or newer; the bundle runs on its own `*.salesforce.app` domain in a new tab.
