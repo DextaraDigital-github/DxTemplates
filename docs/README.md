@@ -1,20 +1,31 @@
-# DxTemplates documentation map
+# DxTemplates Documentation
 
-Start here. Each entry says what the document is for, so you can find the right one quickly.
+Living documentation for DxTemplates, a Salesforce-native PDF template designer and document generator (namespace `DxCPQ`, shipped as a 2GP managed package on AppExchange).
 
-| Folder / file | What it contains | Read it when |
-|---|---|---|
-| `roadmap/product-vision-and-architecture.md` | Product vision, target "Document Engine" architecture, phased roadmap, measured experiments (`Blob.toPdf`, assets, charts) | You decide what to build next |
-| `experiments/` | The scripts behind every measured claim of the vision document (Apex + small Node PDF readers) | You want to re-run or extend an experiment |
-| `testing/placeholders-and-chaining-test-log.md` | Everything tested this season: placeholders, Flow/Apex values, chaining, lifecycle, heavy data, the 2GP package version and installed-package findings | You need what was tested, found and fixed |
-| `testing/*-ui-test-log.md`, `testing/import-export-test-log.md` | Per-area UI test logs (context, clause, table, page properties, import/export) | You work on one designer area |
-| `testing/browser-testing-playbook.md`, `testing/scratch-org-ui-test-runbook.md` | How to drive the browser and rebuild/seed the scratch orgs | You set up an org or repeat a UI test |
-| `tools/` | Helper scripts: deploy and verify, refresh cached component code, org seeds | You deploy or seed |
-| `tools/org-seed/` | Seed scripts for templates, data and test handler classes (`zzpack/` is customer-style code, see its README) | You need test data |
-| `architecture/`, `assessment/` | Earlier architecture and quality reviews of the LWC/Apex code | You review existing code |
-| `roadmap/review-later.md`, `roadmap/cleanup-log.md`, `roadmap/refactoring-plan.md` | Parked items, cleanup history, refactoring plan | You pick up parked work |
+Measured against branch `dev-active-managed`, commit `b99ae1f`, on 2026-10-29. Each document states what was measured and what was not.
+
+| Document | Read it to... |
+|---|---|
+| [architecture/overview.md](architecture/overview.md) | Learn what the product does, its data model, how a PDF is produced, and how the LWC components fit together. Start here if you are new. |
+| [assessment/lwc-code-quality-assessment.md](assessment/lwc-code-quality-assessment.md) | See the evidence-based findings on the LWC/JS/CSS code: metrics, risks, and what to fix first. |
+| [assessment/parent-child-review.md](assessment/parent-child-review.md) | See how the components nest, what the parent-child contracts look like, and the ordered list of improvements. |
+| [assessment/performance-findings.md](assessment/performance-findings.md) | See why first load is slow (hypotheses from code, measurement pending). |
+| [roadmap/cleanup-log.md](roadmap/cleanup-log.md) | Follow each cleanup batch: what changed, how it was verified, what was not covered. |
+| [testing/baseline/README.md](testing/baseline/README.md) | Use the PDF regression baselines (9 templates) and their limits. |
+| [roadmap/review-later.md](roadmap/review-later.md) | Items the owner asked to review later (open and closed), starting with the stale component after a deploy. |
+| [roadmap/refactoring-plan.md](roadmap/refactoring-plan.md) | Follow the phased plan to refactor safely (tests first, then split the large components). |
+| [research/parked-multi-framework-notes.md](research/parked-multi-framework-notes.md) | Facts gathered about React/Angular on Salesforce and 2GP. **Parked:** no recommendation, to be discussed after the existing-code work. |
+| [testing/browser-testing-playbook.md](testing/browser-testing-playbook.md) | **Start here for any UI test:** fast start, timings, tab handling, recipes, pitfalls, how to run an experiment, Jest commands. |
+| [testing/scratch-org-ui-test-runbook.md](testing/scratch-org-ui-test-runbook.md) | Build a scratch org from nothing and seed it. |
+| [tools/README.md](tools/README.md) | Saved scripts: `verify-lwc.ps1`, the parent-child analysis, the org seed Apex, and the guarded-edit templates. |
+| [roadmap/product-vision-and-architecture.md](roadmap/product-vision-and-architecture.md) | **Product vision (2026-11):** target Document Engine, measured `Blob.toPdf` capabilities, roadmap, canvas designer direction. Read before deciding what to build next. |
+| [experiments/](experiments/) | The scripts behind every measured claim of the vision document (Apex + small Node PDF readers). |
+| [testing/placeholders-and-chaining-test-log.md](testing/placeholders-and-chaining-test-log.md) | Placeholders, Flow/Apex values, chaining, lifecycle, heavy data, the 2GP package version and what only shows in an installed package. |
+| [tools/org-seed/zzpack/README.md](tools/org-seed/zzpack/README.md) | Customer-style test code (handler classes, Flow, preview probes) and why handler classes must be `global`. |
 
 ## Conventions
-* Findings are tagged **[Verified]** (measured), **[Documented]** (from Salesforce docs) or **[Assumption]** (needs a spike).
-* A test is written first, then the fix, then verified in the browser or in a real PDF when output is affected.
-* Seed scripts use `DxCPQ__` names so they run both in the namespaced dev org and in an org with the package installed.
+
+- Findings are labelled **Verified** (seen in code, org, or an official source) or **Unverified** (inferred or from a secondary source).
+- Severity: **High** = security, data-loss, or release risk. **Medium** = stability or maintainability. **Low** = style or polish.
+- Newer documents (from 2026-11) tag claims **[Verified]**, **[Documented]** or **[Assumption]**.
+- Update these documents in the same pull request as the code change they describe.
