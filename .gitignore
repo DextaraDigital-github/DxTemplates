@@ -44,3 +44,6 @@ $RECYCLE.BIN/
 **/.venv/
 **/venv/
 .vscode/mcp.json
+
+# Third-party binary for the preview experiment (see zzpack/README.md)
+docs/tools/org-seed/zzpack/force-app/main/default/staticresources/

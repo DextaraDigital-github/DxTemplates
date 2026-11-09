@@ -1,0 +1,11 @@
+<template>
+    <lightning-card title="PDF preview probe">
+        <div class="slds-p-around_medium">
+            <lightning-input type="number" label="Table rows" value={rows} onchange={handleRows}></lightning-input>
+            <lightning-button label="Render" variant="brand" onclick={handleRender} class="slds-m-top_small"></lightning-button>
+            <p class="slds-m-top_small">{status}</p>
+            <template for:each={log} for:item="line"><p key={line}>{line}</p></template>
+            <div lwc:dom="manual" class="host slds-m-top_small"></div>
+        </div>
+    </lightning-card>
+</template>
