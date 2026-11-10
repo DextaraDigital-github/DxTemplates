@@ -1,0 +1,9 @@
+<!-- SPIKE 1 (dev org only): the same font test through the Visualforce PDF engine, for comparison with Blob.toPdf. -->
+<apex:page applyHtmlTag="false" showHeader="false" renderAs="pdf" standardStylesheets="false">
+<head><style>
+@page { size: A4; margin: 40px; }
+@font-face { font-family: ZZFont; src: url({!URLFOR($Resource.ZZSpikeFont)}); -fs-pdf-font-embed: embed; -fs-pdf-font-encoding: Identity-H; }
+p.zz { font-family: ZZFont, Helvetica; font-size: 20px; } p.hv { font-family: Helvetica; font-size: 20px; }
+</style></head>
+<body><p class="zz">The quick brown fox 0123456789 (custom)</p><p class="hv">The quick brown fox 0123456789 (Helvetica)</p></body>
+</apex:page>

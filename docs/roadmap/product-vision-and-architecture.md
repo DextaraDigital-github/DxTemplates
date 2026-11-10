@@ -60,6 +60,10 @@ All scripts are in `docs/experiments/` and can be re-run in the dev org. Environ
 | SVG (inline or as image) | no | **no** | inline SVG ignored, SVG image replaced by placeholder [Verified] |
 | CSS | CSS 2.1 | **CSS 2.1** | floats work; no flexbox/grid/gradients [Documented, partly Verified] |
 
+### 2.1b Spike results of 2026-11-10 (fonts, CSS, post-processing)
+
+Custom fonts via `@font-face` do not work on either engine (10 URL variants, nothing embedded). Only CSS 2.1 layout is honoured; `rgba()` and gradients drop the background, so the designer must emit only `#rrggbb` and table/float/absolute layout. **Apex can post-process a `toPdf` PDF** (incremental update: stamps, vector shapes, an image replaced by a vector form) in tens of ms. Details: `docs/experiments/pdf-spikes/README.md`. [Verified]
+
 ### 2.2 Headless charts are feasible without external JavaScript
 
 An Apex routine drew a 400x200 bar chart as a **valid PNG** (indexed colour, stored deflate, hand-written CRC32 and Adler32; CRCs and

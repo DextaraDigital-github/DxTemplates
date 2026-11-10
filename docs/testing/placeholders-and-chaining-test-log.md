@@ -116,3 +116,9 @@ Details, files and rerun steps: `docs/experiments/parity-poc/README.md`; report:
 - Needed adapter: the page's HTML must be normalised (one head with all styles, one body, no scripts) or `Blob.toPdf` ignores `@page` (Letter, no header/footer). Large documents need `indexOf` loops instead of regexes.
 - Speed: 68-page template 4.1 s (Visualforce) vs 1.4 s (`toPdf`); small templates 0.2 to 0.6 s vs 0.01 to 0.4 s.
 - Gap: ZZ Heavy Combined cannot be generated through the server route at all (CPU limit while building the document), independent of the PDF engine.
+
+## PDF engine spikes: fonts, CSS, post-processing (2026-11-10)
+Details, tables and files: `docs/experiments/pdf-spikes/README.md`.
+- **Fonts:** `@font-face` from a File, static resource or Attachment (10 variants, also through the Visualforce engine) is silently ignored, nothing embedded. Custom fonts are not possible.
+- **CSS:** CSS 2.1 layout works (floats, inline-block, absolute, table display, dashed borders, :before/:after, justify). Ignored: border-radius, opacity, box-shadow, text-shadow, transform, letter-spacing, nth-child, box-sizing, calc, flexbox, columns, ellipsis. **rgba() and gradients make the background disappear.**
+- **Post-processing in Apex:** an incremental update of a toPdf PDF adds stamps, vector shapes and replaces an image by a vector form; pdf.js reads it; 56 ms CPU on a 2-page PDF.
