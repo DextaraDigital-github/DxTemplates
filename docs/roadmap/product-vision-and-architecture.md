@@ -73,7 +73,7 @@ per pixel; drawing by runs and rows would be about ten times faster [Assumption]
 * Screen path ceiling: the LWC posts the whole document as one parameter; 1.8 MB works, 4.85 MB fails (3,419 Related Objects rows).
 * Related Objects through the Flow action: about 1.4 ms of CPU per row, so about 2,500 rows exhaust the 10 s synchronous limit.
 * Visualforce route: 12,000 rows take 39 s and 3.4 s of CPU.
-* Installed (managed) package: the Flow action was invisible to Flows, and a customer's Apex class is invisible unless it is `global`.
+* Installed (managed) package: the Flow action was invisible to Flows until it was made `global`. A customer's Apex class was first thought to need `global` too; that was wrong, the cause was the namespace lookup (fixed by `TypeLookup`, see test log 3c).
 
 ---
 
