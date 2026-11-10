@@ -10,7 +10,8 @@ tests) we need customer-style code next to the package.
 ## Contents
 | Item | Purpose |
 |---|---|
-| `ZZPlaceholderHandler`, `ZZHeavyHandler`, `ZZHeavyHandlerBig`, `ZZChainHandler` | Handler classes (`implements DxCPQ.DXHandlerInterface`) for the "Apex class" process type and for the chained generation. **They must be `global`**: a managed package cannot see a customer's `public` class (verified in an installed org, see `docs/testing/placeholders-and-chaining-test-log.md`). |
+| `ZZPlaceholderHandler`, `ZZHeavyHandler`, `ZZHeavyHandlerBig`, `ZZChainHandler` | Handler classes (`implements DxCPQ.DXHandlerInterface`) for the "Apex class" process type and for the chained generation. They are written `global`, but that is not required: `ZZPublicHandler` (a deliberately `public` class, `public` execute) is found and used by the installed package too (verified 2026-11-10 in package 0.23.0.4, see the 3c section of `docs/testing/placeholders-and-chaining-test-log.md`). What is required is the namespace-aware lookup (`TypeLookup`). |
+| `ZZPublicHandler` | Evidence that a `public` customer handler class works (see above). |
 | `flows/ZZ_Placeholder_Flow` | Autolaunched Flow that returns values as JSON in `genericData`. |
 | `customMetadata/DxCPQ__DXTemplates_HandlerClass.HandlerClass` | Names the handler class called after a chained PDF is saved. |
 | `ZZToPdfProbe`, `ZZPdfPreview`, `lwc/zzPdfProbe`, `flexipages`, `tabs` | **Experiments** for `Blob.toPdf` and in-page PDF preview (see `docs/roadmap/product-vision-and-architecture.md` and `docs/experiments/`). Safe to delete; kept so the findings can be reproduced. |

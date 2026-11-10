@@ -322,7 +322,7 @@ since several of this week's surprises were knowledge gaps rather than defects.
 | 2 | Preview spike (React + Apex REST + pdf.js) | Decides the designer direction | done |
 | 3a | Quick win: page sizes A3, A4, A5, B4, B5, Letter, Legal, Ledger in the widget | Controller already supports them | XS. **Done 2026-11-10**: all 8 sizes in the widget (pageOptions.js + Jest), unset default no longer becomes undefined; A3 verified in the real PDF (MediaBox 841.88 x 1190.55) |
 | 3b | Quick win: header/footer minimum padding (the zero-padding layout trap) | A user can break the PDF today | S. **Done 2026-11-10**: the server raises header/footer cell side padding (px) to at least 10px (`DisplayPDFController.ensureMinimumSidePadding`); see the test log, section "3b" |
-| 3c | Quick win: class picker marks classes that are not `global`; document the rule | Silent failure in installed packages | S |
+| 3c | ~~Quick win: class picker marks classes that are not `global`; document the rule~~ **Dropped 2026-11-10**: tested in an installed package, a `public` handler class works; the earlier "must be global" finding was a namespace-lookup problem fixed by `TypeLookup` (see test log, section 3c) | n/a | n/a |
 | 3d | Quick win: new tables default to automatic column widths (widths become optional) | Removes the tedious width setting; engine sizes by content (verified) | M |
 | 4 | Phase 0 parity: `Blob.toPdf` behind a flag for the headless path, golden-file corpus | Proves the engine switch on real templates | M |
 | 5 | Phase 1: one engine (`DxDocument.generate`), server-side build for the screen, one Related Objects implementation | Removes the size ceiling and the duplicated pipelines | L |

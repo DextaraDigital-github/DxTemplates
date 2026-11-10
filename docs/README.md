@@ -21,7 +21,7 @@ Measured against branch `dev-active-managed`, commit `b99ae1f`, on 2026-10-29. E
 | [roadmap/product-vision-and-architecture.md](roadmap/product-vision-and-architecture.md) | **Product vision (2026-11):** target Document Engine, measured `Blob.toPdf` capabilities, roadmap, canvas designer direction. Read before deciding what to build next. |
 | [experiments/](experiments/) | The scripts behind every measured claim of the vision document (Apex + small Node PDF readers). |
 | [testing/placeholders-and-chaining-test-log.md](testing/placeholders-and-chaining-test-log.md) | Placeholders, Flow/Apex values, chaining, lifecycle, heavy data, the 2GP package version and what only shows in an installed package. |
-| [tools/org-seed/zzpack/README.md](tools/org-seed/zzpack/README.md) | Customer-style test code (handler classes, Flow, preview probes) and why handler classes must be `global`. |
+| [tools/org-seed/zzpack/README.md](tools/org-seed/zzpack/README.md) | Customer-style test code (handler classes, Flow, preview probes) and the finding that a handler class need not be `global`. |
 
 ## Conventions
 
