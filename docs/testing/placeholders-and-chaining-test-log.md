@@ -109,3 +109,10 @@ Rerun recipe in the installed org: create Account Datamatics (acct2gp.apex data)
 - **Tests:** 5 new Jest tests (220 in total pass): new table is auto + 100%; the editing grid stays fixed; S.No column does not count as a manual width; a resized new table stays fixed; a reopened table stays fixed.
 - **Designer click-through (done 2026-11-10, dev org):** a Table section created in the designer (3 rows x 4 columns, default settings) and saved with Update is stored as `style="font-family: Verdana, sans-serif; font-size: large; table-layout: auto; width: 100%;"`. (The Chrome tab had to be in front: a background tab froze on screenshots and clicks.)
 - **Side finding (for discussion):** the "No such column DxCPQ__Document_Language__c on entity Account" exception seen in the installed org comes from the custom metadata record `Document_Translation.Account_Language_Field`, which names a language field on the record's object; where that field does not exist the generation logs the exception and carries on.
+
+## Parity PoC: Visualforce PDF vs Blob.toPdf on the real templates (2026-11-10)
+Details, files and rerun steps: `docs/experiments/parity-poc/README.md`; report: `docs/experiments/parity-poc/results-2026-11-10.md`.
+- 12 templates (sample + placeholder + a 68-page Related Objects one), A4 portrait: same pages, words, images and size on both routes, **identical text positions on every page**, 3 byte-identical.
+- Needed adapter: the page's HTML must be normalised (one head with all styles, one body, no scripts) or `Blob.toPdf` ignores `@page` (Letter, no header/footer). Large documents need `indexOf` loops instead of regexes.
+- Speed: 68-page template 4.1 s (Visualforce) vs 1.4 s (`toPdf`); small templates 0.2 to 0.6 s vs 0.01 to 0.4 s.
+- Gap: ZZ Heavy Combined cannot be generated through the server route at all (CPU limit while building the document), independent of the PDF engine.
