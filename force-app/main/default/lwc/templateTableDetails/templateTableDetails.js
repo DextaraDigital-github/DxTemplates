@@ -46,6 +46,9 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     isHeaderMergeField = false;
     isTableColumnSizeChange = false;
     savedColumnWidths = {};
+    // true while a table that was saved earlier is being edited: its saved layout (fixed columns) is kept. A new table is saved with
+    // automatic column widths unless the user resizes a column (see applyAutomaticColumnWidths).
+    isExistingTable = false;
 
     imageUrls = [];
     mainimageUrls = [];
@@ -1109,7 +1112,26 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
             cell.setAttribute('style', currentStyle);
         });
 
+        this.applyAutomaticColumnWidths(domConverted);
+
         return new XMLSerializer().serializeToString(domConverted.body.firstChild);
+    }
+
+    // The editing grid always uses equal columns (table-layout: fixed), which is what the PDF got too: every column the same width whatever
+    // it holds. A new table is saved with automatic layout over the full width instead, so the PDF engine sizes each column by its content.
+    // Kept fixed: a table saved earlier (its look must not change when it is saved again) and a table where the user resized a column
+    // (the S.No column always has a width of its own and does not count).
+    applyAutomaticColumnWidths(parsedDocument) {
+        const table = parsedDocument.querySelector('table');
+        if (!table || this.isExistingTable) {
+            return;
+        }
+        const userResized = [...table.querySelectorAll('thead th')].some(th => !th.classList.contains('serialNumber') && th.style.width);
+        if (userResized) {
+            return;
+        }
+        table.style.tableLayout = 'auto';
+        table.style.width = '100%';
     }
 
     /**
@@ -1158,6 +1180,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     */
     @api resetvaluesonchildcmp() {
 
+        this.isExistingTable = false;
         this.tableOnLoad = true;
         this.tableDisplayed = false;
         this.showtablecontent = false;
@@ -1256,6 +1279,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     */
 
     @api loadsectionsectionvaluesforedit(recordID) {
+        this.isExistingTable = true;
         this.isLoaded = true;
         this.tableOnLoad = false;
         this.tableDisplayed = true;
@@ -1835,6 +1859,7 @@ export default class TemplateTableDetails extends NavigationMixin(LightningEleme
     submitTableClear() {
         this.template.querySelector('c-modal').hide();
         this.isClearTable = false;
+        this.isExistingTable = false; // starting the table again makes it a new table
         this.selectedBDRbgcolor = '';
         this.selectedBBgcolor = '';
         this.selectedBFontColor = '';

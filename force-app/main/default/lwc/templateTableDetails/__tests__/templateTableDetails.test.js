@@ -459,6 +459,100 @@ describe('c-template-table-details', () => {
         });
     });
 
+    // 3d (docs/roadmap/product-vision-and-architecture.md): a new table is saved with automatic column widths, so the PDF engine sizes
+    // the columns by their content (measured in a real PDF: a description column that wrapped to 3 lines in equal columns fits on one).
+    // A table that was saved earlier, or whose columns the user resized, keeps the fixed layout it has.
+    describe('column layout of the saved table', () => {
+        const savedTable = () => {
+            const html = saveDocumentTemplateSectionDetails.mock.calls[0][0].Recorddetails.DxCPQ__Section_Content__c;
+            return new DOMParser().parseFromString(html, 'text/html').querySelector('table');
+        };
+        async function newTable() {
+            const element = mount({ rowcount: 2 });
+            await flush();
+            setNative(element, 'input.rows', 2);
+            setNative(element, 'input.cols', 3);
+            button(element, 'Create Table').click();
+            await flush();
+            setName(element, 'Prices');
+            return element;
+        }
+        async function save(element) {
+            button(element, 'Update').click();
+            await flush();
+        }
+        const tick = async (element, title) => {
+            const box = [...element.shadowRoot.querySelectorAll('lightning-input')].find(i => i.title === title);
+            box.checked = true;
+            box.dispatchEvent(new CustomEvent('click'));
+            await flush();
+            jest.runOnlyPendingTimers();
+            await flush();
+        };
+
+        it('saves a new table with automatic column widths over the full width', async () => {
+            const element = await newTable();
+            await save(element);
+
+            const table = savedTable();
+            expect(table.style.tableLayout).toBe('auto');
+            expect(table.style.width).toBe('100%');
+        });
+
+        it('still shows the editing grid with equal columns while the table is being made', async () => {
+            const element = await newTable();
+            await save(element);
+
+            expect(element.shadowRoot.querySelector('table.mytable').style.tableLayout).toBe('fixed');
+        });
+
+        it('keeps automatic widths for a new table with the S.No column, which has a width of its own', async () => {
+            const element = await newTable();
+            await tick(element, 'Include Serial Numbers');
+            await save(element);
+
+            const table = savedTable();
+            expect(table.querySelector('thead th.serialNumber').style.width).toMatch(/px$/);
+            expect(table.style.tableLayout).toBe('auto');
+        });
+
+        it('keeps the fixed layout when the user resized a column of a new table', async () => {
+            const element = await newTable();
+            await tick(element, 'Resize Columns');
+            element.shadowRoot.querySelector('.resize-handle[data-index="0"]')
+                .dispatchEvent(new MouseEvent('mousedown', { bubbles: true, composed: true, clientX: 10 }));
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: 70 }));
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            await save(element);
+
+            const table = savedTable();
+            expect(table.querySelectorAll('thead th')[0].style.width).toBe('60px');
+            expect(table.style.tableLayout).toBe('fixed');
+            expect(table.style.width).toBe('');
+        });
+
+        it('keeps the fixed layout of a table that was saved earlier when it is saved again', async () => {
+            gettemplatesectiondata.mockResolvedValue({
+                Name: 'Prices', DxCPQ__Document_Template__c: 'a00TEMPLATE', DxCPQ__Sequence__c: 2, DxCPQ__Type__c: 'Table',
+                DxCPQ__Section_Visibility_Rule__c: null, DxCPQ__Resized_Images_Data__c: '',
+                DxCPQ__Section_Details__c: JSON.stringify({
+                    rownumber: 2, colnumber: 3, serialNumberColumn: false, headersIncluded: true, colWidthChanged: false,
+                    headerFont: '#000000', bodyFont: '#000000', headbackground: '#ffffff', bodybackground: '#ffffff',
+                    fontsize: '12px', fontfamily: 'Verdana', borderstyle: '', bordercolor: '', newPage: false, sectionInfo: []
+                })
+            });
+            const element = mount({ sectionrecordid: 'a02SECTION' });
+            await flush();
+            element.loadsectionsectionvaluesforedit('a02SECTION');
+            await flush();
+            jest.runOnlyPendingTimers();
+            await flush();
+            await save(element);
+
+            expect(savedTable().style.tableLayout).toBe('fixed');
+        });
+    });
+
     // D1: the table re-applies the section-wide header/body colours every time it renders, which painted over
     // the colour a user had given to one single cell.
     it('keeps the colour of a single cell when the table renders again', async () => {
