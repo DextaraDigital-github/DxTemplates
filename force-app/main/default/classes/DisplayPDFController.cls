@@ -1025,10 +1025,46 @@ global with sharing class DisplayPDFController
         return cssString.trim();
     }
     
+    // Smallest left and right padding (px) of a header or footer cell. Without it the text touches the page edge and the PDF engine lays the cell out wrongly.
+    public static final Integer MIN_SIDE_PADDING_PX = 10;
+
+    // Raises padding-left / padding-right given in px to the minimum, and adds them when the cell has neither them nor a "padding:" shorthand
+    // (the shorthand is left as the author wrote it). Other units (em, %) and larger values are not touched.
+    public static String ensureMinimumSidePadding(String css) {
+        if (css == null) {
+            return null;
+        }
+        for (String side : new List<String>{ 'left', 'right' }) {
+            Matcher found = Pattern.compile('(?i)(padding-' + side + '\\s*:\\s*)(-?\\d+(?:\\.\\d+)?)(px)').matcher(css);
+            Boolean present = false;
+            String rebuilt = '';
+            Integer copiedUpTo = 0;
+            while (found.find()) {
+                present = true;
+                if (Decimal.valueOf(found.group(2)) < MIN_SIDE_PADDING_PX) {
+                    rebuilt += css.substring(copiedUpTo, found.start(2)) + MIN_SIDE_PADDING_PX;
+                    copiedUpTo = found.end(2);
+                }
+            }
+            if (present) {
+                css = rebuilt + css.substring(copiedUpTo);
+            } else if (!Pattern.compile('(?i)(^|[\\s;{])padding(-' + side + ')?\\s*:').matcher(css).find() && css.lastIndexOf('}') >= 0) {
+                Integer close = css.lastIndexOf('}');
+                css = css.substring(0, close) + ' padding-' + side + ': ' + MIN_SIDE_PADDING_PX + 'px; ' + css.substring(close);
+            }
+        }
+        return css;
+    }
+
+    private static Boolean isHeaderOrFooterStyle(String key) {
+        return key != null && (key.startsWith('header_') || key.startsWith('first_header_') || key.startsWith('footer_'));
+    }
+
     public static Map<String, String> getSanitizedHeaderJSON(Map<String, String> headerProperties) {
         Map<String, String> sanitizedHeaderJSON = new Map<String, String>();
         for (String key : headerProperties.keySet()) {
-            sanitizedHeaderJSON.put(key, sanitizeCss(headerProperties.get(key)));
+            String css = sanitizeCss(headerProperties.get(key));
+            sanitizedHeaderJSON.put(key, isHeaderOrFooterStyle(key) ? ensureMinimumSidePadding(css) : css);
         }
         return sanitizedHeaderJSON;
     }
