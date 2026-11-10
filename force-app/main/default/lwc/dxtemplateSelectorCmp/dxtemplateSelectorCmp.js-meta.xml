@@ -16,7 +16,7 @@
 				<supportedFormFactor type="Large" />
 			</supportedFormFactors>
 		    <property label="Template Name" name='defaultTemplateName'  description="Type the name of the template to set it as default. This field is case sensitive and please ensure the template is active." type="String" />
-			<property label="Page Size" name='defaultPageSize'  description="Select the default Page Size (A4, A5 or Letter)"   type="String" />
+			<property label="Page Size" name='defaultPageSize'  description="Select the default Page Size (A4, A3, A5, B4, B5, Letter, Legal or Ledger). Anything else is A4."   type="String" />
 			<property label="Page Orientation" name='defaultPageOrientation'  description="Select the default Page Orientation (Potrait or Landscape)" type="String" />
 		</targetConfig>
 	</targetConfigs>

@@ -5,6 +5,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import dexcpqcartstylesCSS from '@salesforce/resourceUrl/dexcpqcartstyles';
 import pdfObjectdetails from '@salesforce/apex/PdfDisplay.getObjectDetails';
 import saveAsRecordAttachment from '@salesforce/apex/DisplayPDFController.savePDFtoQuote';
+import { PAGE_SIZE_OPTIONS, resolvePageSize, resolvePageOrientation } from './pageOptions';
 
 export default class DxtemplateSelectorCmp extends LightningElement {
 
@@ -20,11 +21,7 @@ export default class DxtemplateSelectorCmp extends LightningElement {
     @track showSendEmailModal = false;
     @track pageOrientation = 'Portrait';
     @track saveRecordToAttachmentLabel;
-    @track pageSizeOptions = [
-        { label: 'A4', value: 'A4' },
-        { label: 'A5', value: 'A5' },
-        { label: 'Letter', value: 'Letter' },
-    ];
+    @track pageSizeOptions = PAGE_SIZE_OPTIONS;
     @track  pageOrientationOptions = [
         { label: 'Portrait', value: 'Portrait' },
         { label: 'Landscape', value: 'Landscape' }
@@ -53,8 +50,8 @@ export default class DxtemplateSelectorCmp extends LightningElement {
     }
 
     connectedCallbackHandler() {
-        this.pageSize =  this.defaultPageSize != '' || this.defaultPageSize != null ? this.defaultPageSize : 'A4';
-        this.pageOrientation =  this.defaultPageOrientation != '' || this.defaultPageOrientation != null ? this.defaultPageOrientation : 'Portrait';
+        this.pageSize = resolvePageSize(this.defaultPageSize);
+        this.pageOrientation = resolvePageOrientation(this.defaultPageOrientation);
         this.pageProperties.pageSize = this.pageSize;
         this.pageProperties.pageOrientation = this.pageOrientation;
         this.saveRecordToAttachmentLabel = `Save as Attachment`;
