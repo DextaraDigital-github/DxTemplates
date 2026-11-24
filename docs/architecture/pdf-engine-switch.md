@@ -31,7 +31,7 @@ transaction that already saved data, the Visualforce fallback itself cannot run 
 | `DXTemplates_PdfEngine__mdt` + record `Default` | the setting (`Use_Direct_Engine__c`, default false) |
 | `PdfEngine` | `useDirectEngine()`, `render(documentId, pageSize, orientation)`, `normalizeForToPdf`, `rteTableCss` |
 | `renderAsPdfLWC.page` + `DisplayPDFController` | `renderAs` is `pdf` unless the parameter `engine=html` is given (`pageRenderAs`, `htmlMode`, `inlineRteCss`); in HTML mode the table stylesheet is written inline |
-| static resource `DxRteTableCss` | plain-text copy of `rte_tbl/rte_tbl1.css` (`Blob.toPdf` cannot fetch a linked stylesheet). A Jest test (`staticresources/__tests__/rteCssCopy.test.js`) fails if the two differ: **change both or neither** |
+| static resource `DxRteTableCss` | plain-text copy of `rte_tbl/rte_tbl1.css` (`Blob.toPdf` cannot fetch a linked stylesheet). A Jest test (`docs/tools/__tests__/rteCssCopy.test.js`) fails if the two differ: **change both or neither** |
 | `sendEmailAutomation` | the two places that used `getContentAsPDF` now call `PdfEngine.render` |
 
 ## Why the HTML is cleaned up

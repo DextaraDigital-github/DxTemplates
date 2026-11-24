@@ -2,10 +2,12 @@
 // rte_tbl/rte_tbl1.css (static resource DxRteTableCss). The two files must stay identical: change both or neither.
 const fs = require('fs');
 const path = require('path');
+// Lives here and not next to the resources: anything inside force-app/.../staticresources is packaged as a static resource.
+const resources = path.join(__dirname, '..', '..', '..', 'force-app', 'main', 'default', 'staticresources');
 
 describe('DxRteTableCss is a copy of rte_tbl/rte_tbl1.css', () => {
-    const original = path.join(__dirname, '..', 'rte_tbl', 'rte_tbl1.css');
-    const copy = path.join(__dirname, '..', 'DxRteTableCss.resource');
+    const original = path.join(resources, 'rte_tbl', 'rte_tbl1.css');
+    const copy = path.join(resources, 'DxRteTableCss.resource');
 
     it('exists next to the original', () => {
         expect(fs.existsSync(copy)).toBe(true);
