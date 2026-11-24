@@ -26,8 +26,10 @@ String maskHex(String h) {
 }
 String pageBox(String hex) { Integer i = hex.indexOf('2f4d65646961426f78'); return i < 0 ? 'no MediaBox' : latin1(hex, i / 2, 36); }   // /MediaBox
 for (String c : new List<String>{ 'invoice-A4-portrait', 'grant-A4-portrait', 'invoice-Letter-landscape', 'newsletter-A4-portrait' }) {
-    Attachment offAtt = [SELECT Id, BodyLength FROM Attachment WHERE Name = :('off ' + c + '.pdf') ORDER BY CreatedDate DESC LIMIT 1];
-    Attachment onAtt = [SELECT Id, BodyLength FROM Attachment WHERE Name = :('on ' + c + '.pdf') ORDER BY CreatedDate DESC LIMIT 1];
+    List<Attachment> offList = [SELECT Id, BodyLength FROM Attachment WHERE Name = :('off ' + c + '.pdf') ORDER BY CreatedDate DESC LIMIT 1];
+    List<Attachment> onList = [SELECT Id, BodyLength FROM Attachment WHERE Name = :('on ' + c + '.pdf') ORDER BY CreatedDate DESC LIMIT 1];
+    if (offList.isEmpty() || onList.isEmpty()) { System.debug('SWCMP ' + c + ': not run in this org'); continue; }   // a case that was not generated here
+    Attachment offAtt = offList[0]; Attachment onAtt = onList[0];
     String h1 = EncodingUtil.convertToHex([SELECT Body FROM Attachment WHERE Id = :offAtt.Id].Body);
     String h2 = EncodingUtil.convertToHex([SELECT Body FROM Attachment WHERE Id = :onAtt.Id].Body);
     String verdict = h1 == h2 ? 'byte-identical' : (maskHex(h1) == maskHex(h2) ? 'IDENTICAL except dates, document ID and random font tags' : 'DIFFERENT');

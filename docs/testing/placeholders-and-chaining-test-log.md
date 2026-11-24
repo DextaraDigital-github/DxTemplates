@@ -125,4 +125,4 @@ Details, tables and files: `docs/experiments/pdf-spikes/README.md`.
 
 ## PDF engine switch (2026-11-24, dev org)
 Details: `docs/architecture/pdf-engine-switch.md`. Setting off: Visualforce output unchanged (identical except random font tags and dates). Setting on, via the real Flow action in a Queueable: same size and page box
-for A4 portrait, Letter landscape and an Opportunity template, no fallback logged. Not yet checked in an installed package (namespace handling of the stylesheet static resource).
+for A4 portrait, Letter landscape and an Opportunity template, no fallback logged. Installed package 0.23.0-5 (fresh org, 2026-11-25): switch off and on give the same sizes and page boxes for 3 Account cases, no fallback logged, so the namespace-sensitive stylesheet lookup works.

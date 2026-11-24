@@ -49,6 +49,14 @@ loops (a regex fails on documents over about 1 MB).
 * `getContent()` and `Blob.toPdf` both run after data was saved in the same transaction (tested); `getContentAsPDF` does not.
 * Tests: 8 Apex tests (`PdfEngine_Test`), 3 Jest tests for the stylesheet copy; all 220 Apex and 223 Jest tests pass.
 
+## Verified in an installed package (2026-11-25)
+Package version 0.23.0-5 (`04tQm000003DxIHIA0`), fresh scratch org created with `--no-ancestors` (otherwise the install fails with "used as a scratch org ancestor"), no namespace tricks:
+* the packaged record `DXTemplates_PdfEngine.Default` is there and off; the stylesheet static resource is found by its namespace (`PdfEngine.rteTableCss`);
+* Account cases through the real Flow action with the switch off and on (`4_switch_cases.ps1 -AccountOnly`, `5_compare_switch_in_org.apex`): Invoice A4 portrait 8,047 bytes, Grant Proposal A4 portrait 9,236, Invoice Letter landscape 7,928 in
+  **both** settings, the same sizes as in the dev org, page boxes `595.28 x 841.88` and `792 x 612`, differences only in the order of font objects; **no row in `TransactionLog__c`**, so the direct engine ran and never fell back;
+* to turn the switch on in an installed org from Apex: `Metadata.CustomMetadata` with `fullName = 'DxCPQ__DXTemplates_PdfEngine.DxCPQ__Default'`, field `DxCPQ__Use_Direct_Engine__c` = true, deployed with `Metadata.Operations.enqueueDeployment`
+  (the admin simply uses Setup, Custom Metadata Types).
+
 ## Known limits
 Watermarks and images saved in the same transaction were not part of the comparison (landscape and Letter were); test them on a template before turning the switch on in an org. Documents whose server-side build exceeds the CPU limit (for example 3,400 Related Objects rows) fail before the PDF engine is reached, with either setting.
 Only an org-wide setting exists; a per-template setting is a possible next step.
