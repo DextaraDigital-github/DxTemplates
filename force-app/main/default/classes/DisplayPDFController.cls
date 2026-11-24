@@ -218,7 +218,16 @@ global with sharing class DisplayPDFController
     public Map<String,String> styleList {get; set;} 
     public Map<String,String> sanitizedHeaderJSON {get; set;}
     public Map<String,String> marPadList {get; set;}
-    
+
+    // The page renderAsPdfLWC makes a PDF by default. With the parameter engine=html it returns its HTML instead (renderAs is left empty,
+    // the table stylesheet is written inline): that HTML is what the direct PDF engine (PdfEngine, Blob.toPdf) turns into a PDF.
+    public static Boolean isHtmlRequested(Map<String, String> pageParameters) {
+        return pageParameters != null && pageParameters.get('engine') == 'html';
+    }
+    public Boolean htmlMode { get { return isHtmlRequested(ApexPages.currentPage().getParameters()); } }
+    public String pageRenderAs { get { return htmlMode ? null : 'pdf'; } }
+    public String inlineRteCss { get { return htmlMode ? PdfEngine.rteTableCss() : ''; } }
+
 
     /**
     * @description Constructor for the DisplayPDFController class.

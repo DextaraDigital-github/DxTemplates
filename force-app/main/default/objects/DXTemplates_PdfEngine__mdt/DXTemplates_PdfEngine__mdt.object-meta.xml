@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Which engine turns a generated document into a PDF when there is no screen (Flow, Apex, API). One record, "Default". The admin changes the checkbox of that record: Setup, Custom Metadata Types, DXTemplates_PdfEngine, Manage Records.</description>
+    <label>DXTemplates_PdfEngine</label>
+    <pluralLabel>DXTemplates_PdfEngine</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

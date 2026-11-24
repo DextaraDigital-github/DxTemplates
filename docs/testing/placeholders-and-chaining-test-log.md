@@ -122,3 +122,7 @@ Details, tables and files: `docs/experiments/pdf-spikes/README.md`.
 - **Fonts:** `@font-face` from a File, static resource or Attachment (10 variants, also through the Visualforce engine) is silently ignored, nothing embedded. Custom fonts are not possible.
 - **CSS:** CSS 2.1 layout works (floats, inline-block, absolute, table display, dashed borders, :before/:after, justify). Ignored: border-radius, opacity, box-shadow, text-shadow, transform, letter-spacing, nth-child, box-sizing, calc, flexbox, columns, ellipsis. **rgba() and gradients make the background disappear.**
 - **Post-processing in Apex:** an incremental update of a toPdf PDF adds stamps, vector shapes and replaces an image by a vector form; pdf.js reads it; 56 ms CPU on a 2-page PDF.
+
+## PDF engine switch (2026-11-24, dev org)
+Details: `docs/architecture/pdf-engine-switch.md`. Setting off: Visualforce output unchanged (identical except random font tags and dates). Setting on, via the real Flow action in a Queueable: same size and page box
+for A4 portrait, Letter landscape and an Opportunity template, no fallback logged. Not yet checked in an installed package (namespace handling of the stylesheet static resource).

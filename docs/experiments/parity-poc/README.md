@@ -34,6 +34,8 @@ loops, because lazy regexes fail with "Regex too complicated" on documents over 
 | `2_render_topdf.apex` | Step 2 (one template per run): baseline `getContentAsPDF()` of the production page and candidate `Blob.toPdf` of the same page's HTML, stored as Attachments. |
 | `run_parity.ps1` | Runs both steps for the whole corpus (`-SkipGenerate` repeats step 2 only, `-Only '<template>'` for one). |
 | `fetch_results.mjs`, `compare.mjs` | Download the attachments and compare pairs (pages, words, images, bytes, text positions). Need `pdfjs-dist` (legacy build). |
+| `3_compare_in_org.apex` | Compares the oldest and newest `vf *.pdf` of each Document inside the org (no download, no credentials): proves a change did not alter the Visualforce output. |
+| `4_switch_cases.ps1`, `5_compare_switch_in_org.apex` | Exercise the engine switch through the real Flow action (switch off, then on) and compare the pairs in the org. |
 | `results-2026-11-10.md` | The comparison report of the run described here. |
 
 ## Rerun

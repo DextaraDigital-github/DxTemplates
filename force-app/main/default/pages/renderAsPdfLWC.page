@@ -1,10 +1,16 @@
-<apex:page controller="DisplayPDFController" applyHtmlTag="false" showHeader="false" cache="true" readOnly="true" applyBodyTag="false" renderas="PDF" standardStylesheets="false">
-    <apex:styleSheet value="{!URLFOR($Resource.rte_tbl, '/rte_tbl1.css')}" />
+<apex:page controller="DisplayPDFController" applyHtmlTag="false" showHeader="false" cache="true" readOnly="true" applyBodyTag="false" renderas="{!pageRenderAs}" standardStylesheets="false">
+    <!-- renderAs is "pdf" unless the parameter engine=html is given: then the page returns its HTML for the direct PDF engine (class PdfEngine). -->
+    <apex:outputPanel rendered="{!NOT(htmlMode)}" layout="none">
+        <apex:styleSheet value="{!URLFOR($Resource.rte_tbl, '/rte_tbl1.css')}" />
+    </apex:outputPanel>
     
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
         <style type="text/css" media="print">
             p{margin: 0 0 0 0;}
+
+            /* direct engine only (written when engine=html): the text of rte_tbl1.css, because Blob.toPdf cannot fetch the linked stylesheet */
+            <apex:outputText rendered="{!htmlMode}" value="{!inlineRteCss}" escape="false" />
 
             <apex:outputText rendered="{!useUnicodeFont}">
                 body, div, p, span, td, th, li, strong, b, em, i, u, a, h1, h2, h3, h4, h5, h6 { font-family: 'Arial Unicode MS' !important; }

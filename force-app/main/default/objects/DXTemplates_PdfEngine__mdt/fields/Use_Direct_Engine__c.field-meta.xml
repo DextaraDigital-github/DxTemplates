@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Use_Direct_Engine__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description>Off (default): PDFs without a screen are made by the Visualforce page, as before. On: they are made directly by Blob.toPdf (faster, no Visualforce, works after saving data in the same transaction). If the direct engine fails, the Visualforce route is used and the failure is logged.</description>
+    <externalId>false</externalId>
+    <fieldManageability>SubscriberControlled</fieldManageability>
+    <inlineHelpText>Tick to make PDFs from Flow, Apex and API generation with the direct engine (Blob.toPdf). Leave it off to keep the Visualforce route.</inlineHelpText>
+    <label>Use Direct Engine</label>
+    <type>Checkbox</type>
+</CustomField>

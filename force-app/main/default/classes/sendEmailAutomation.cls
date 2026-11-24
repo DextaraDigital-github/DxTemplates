@@ -94,22 +94,15 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
             Id insertedAttachmentId;
             List<Messaging.EmailFileAttachment> existingAttachments = new List<Messaging.EmailFileAttachment>();
 
-            /* .pdf version of the Document__c record Content */
-            Pagereference pg = Page.renderAsPdfLWC;
-            pg.getParameters().put('documentId',documentRecordInserted);
-            pg.getParameters().put('selectedPageSize',attachmentPageSize);
-            pg.getParameters().put('selectedPageOrientation',attachmentOrientation);
-            
+            /* .pdf version of the Document__c record Content: PdfEngine renders it with the Visualforce page, or directly with Blob.toPdf when the
+               admin turned the direct engine on (Custom Metadata DXTemplates_PdfEngine.Default) */
+
             /* Attachment Generation and Insertion of the generated Document to Parent Record */
             if(!isSpecificToFox && emailStructure==null) {
                 Attachment documentAttachment = new Attachment();
                     documentAttachment.Name = attachmentName;
-                    documentAttachment.ParentId = attachmentParentId; 
-                if(!Test.isRunningTest()){
-                    documentAttachment.Body = pg.getContentAsPDF();
-                } else {
-                    documentAttachment.Body = Blob.valueOf('Test');
-                }
+                    documentAttachment.ParentId = attachmentParentId;
+                documentAttachment.Body = PdfEngine.render(documentRecordInserted, attachmentPageSize, attachmentOrientation);
                     documentAttachment.IsPrivate = false;
                 Savepoint sp1 = Database.setSavepoint();
 
@@ -129,11 +122,7 @@ global class sendEmailAutomation implements Queueable,Database.AllowsCallouts{
             } else {
                 Attachment documentAttachment = new Attachment();
                 documentAttachment.Name = attachmentName +'.pdf';
-                if(!Test.isRunningTest()){
-                    documentAttachment.Body = pg.getContentAsPDF();
-                } else {
-                    documentAttachment.Body = Blob.valueOf('Test');
-                }               
+                documentAttachment.Body = PdfEngine.render(documentRecordInserted, attachmentPageSize, attachmentOrientation);
 
                 Map<String,Object> outputMap = new Map<String,Object>();
                 outputMap.put('PDFAttachment',documentAttachment);
