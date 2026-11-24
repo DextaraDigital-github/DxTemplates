@@ -22,6 +22,7 @@ Measured against branch `dev-active-managed`, commit `b99ae1f`, on 2026-10-29. E
 | [experiments/](experiments/) | The scripts behind every measured claim of the vision document (Apex + small Node PDF readers). |
 | [testing/placeholders-and-chaining-test-log.md](testing/placeholders-and-chaining-test-log.md) | Placeholders, Flow/Apex values, chaining, lifecycle, heavy data, the 2GP package version and what only shows in an installed package. |
 | [architecture/pdf-engine-switch.md](architecture/pdf-engine-switch.md) | The PDF engine switch: Visualforce or direct `Blob.toPdf` for generation without a screen, where the admin sets it, how it falls back, how it was verified. |
+| [experiments/build-parity/README.md](experiments/build-parity/README.md) | Step 5 (one engine), first slice: the browser build and the server build compared on the 9 sample templates, and the font-check bug it found. |
 | [experiments/pdf-spikes/README.md](experiments/pdf-spikes/README.md) | Spikes on custom fonts (not possible), supported CSS, and post-processing PDFs in Apex. |
 | [tools/org-seed/zzpack/README.md](tools/org-seed/zzpack/README.md) | Customer-style test code (handler classes, Flow, preview probes) and the finding that a handler class need not be `global`. |
 

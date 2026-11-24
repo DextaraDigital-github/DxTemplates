@@ -6,7 +6,7 @@ $corpus = @(
   @('Grant Proposal',$account), @('Invoice Template',$account), @('Merge Field Test',$account), @('Non-Disclosure Agreements (NDAs)',$account),
   @('ZZ Heavy Combined',$account), @('ZZ Placeholders',$account), @('ZZ Flow Placeholders',$account), @('ZZ Clone RO',$account),
   @('Contract Renewal',$opp), @('EMPLOYMENT CONTRACT',$opp), @('Legal Notice',$opp), @('Newsletter',$opp), @('Claim Form',$case))
-if ($Only) { $corpus = $corpus | Where-Object { $_[0] -eq $Only } }
+if ($Only) { $corpus = @($corpus | Where-Object { $_[0] -eq $Only } | ForEach-Object { ,$_ }) }   # ,$_ keeps each case an array even when only one matches
 $step1 = Get-Content "$PSScriptRoot\1_generate.apex" -Raw
 $step2 = Get-Content "$PSScriptRoot\2_render_topdf.apex" -Raw
 function Run($code, $file) {

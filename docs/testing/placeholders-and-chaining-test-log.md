@@ -126,3 +126,6 @@ Details, tables and files: `docs/experiments/pdf-spikes/README.md`.
 ## PDF engine switch (2026-11-24, dev org)
 Details: `docs/architecture/pdf-engine-switch.md`. Setting off: Visualforce output unchanged (identical except random font tags and dates). Setting on, via the real Flow action in a Queueable: same size and page box
 for A4 portrait, Letter landscape and an Opportunity template, no fallback logged. Installed package 0.23.0-5 (fresh org, 2026-11-25): switch off and on give the same sizes and page boxes for 3 Account cases, no fallback logged, so the namespace-sensitive stylesheet lookup works.
+
+## Build parity, browser vs server (2026-11-25)
+Details: `docs/experiments/build-parity/README.md`. Found and fixed: invisible U+FEFF (rich-text cursor) switched whole server-built documents to Arial Unicode MS (Claim Form and Employment Contract: 6 pages and 7 times the size instead of 5 pages); after the fix 9 of 9 sample templates match the widget builds in pages and words. Related Objects, rules, class/Flow values and translations are not yet compared.

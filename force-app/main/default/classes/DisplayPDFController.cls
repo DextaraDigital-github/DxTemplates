@@ -102,6 +102,12 @@ global with sharing class DisplayPDFController
             || (code >= 65280 && code <= 65519);      // full width forms
     }
 
+    // Characters that print nothing: byte order mark (FEFF), zero width space / non-joiner / joiner (200B-200D), left/right marks (200E, 200F),
+    // word joiner (2060). The rich-text editor leaves <span class="ql-cursor">FEFF</span> in saved content; counting it as "non-Latin text" switched
+    // whole documents to Arial Unicode MS on the server route (found by docs/experiments/build-parity). Real scripts that use these marks contain
+    // letters of their own, which still switch the font.
+    private static final Set<Integer> INVISIBLE_CHARACTERS = new Set<Integer>{ 65279, 8203, 8204, 8205, 8206, 8207, 8288 };
+
     /**
      * @description    Whether the text has a character outside Western European Latin (Latin-1 and the Windows-1252 punctuation).
      * @param          text  text of the document
@@ -114,7 +120,7 @@ global with sharing class DisplayPDFController
         }
         for (Integer i = 0; i < text.length(); i++) {
             Integer code = text.charAt(i);
-            if (code > 255 && !WINDOWS_1252_EXTRAS.contains(code)) {
+            if (code > 255 && !WINDOWS_1252_EXTRAS.contains(code) && !INVISIBLE_CHARACTERS.contains(code)) {
                 return true;
             }
         }

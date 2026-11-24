@@ -29,6 +29,16 @@ private class DisplayPDFFontNeed_Test {
         System.assertEquals(true, DisplayPDFController.needsUnicodeFont('Łódź'));
     }
 
+    // Found by the build-parity check (docs/experiments/build-parity): the rich-text editor leaves its cursor in saved content as
+    // <span class="ql-cursor">U+FEFF</span>. That invisible character switched whole documents to Arial Unicode MS on the server route
+    // (wider text, one page more, a PDF 7 times bigger) while the browser route printed them in the normal fonts.
+    @IsTest
+    static void invisibleFormattingCharactersDoNotNeedTheUnicodeFont() {
+        String zeroWidth = String.fromCharArray(new List<Integer>{ 65279, 8203, 8204, 8205, 8288 });
+        System.assertEquals(false, DisplayPDFController.needsUnicodeFont('Claim<span class="ql-cursor">' + zeroWidth + '</span>ant Information'));
+        System.assertEquals(true, DisplayPDFController.needsUnicodeFont(zeroWidth + ' мир'), 'real non-Latin text still needs it');
+    }
+
     @IsTest
     static void oneNonLatinLetterInLongLatinTextIsEnough() {
         System.assertEquals(true, DisplayPDFController.needsUnicodeFont('Hello ' + 'x'.repeat(5000) + ' мир'));
